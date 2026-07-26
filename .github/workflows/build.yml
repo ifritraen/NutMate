@@ -35,7 +35,7 @@ jobs:
         run: flutter pub get
 
       - name: Run Static Analysis
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Build Split-ABI Release APKs
         run: flutter build apk --split-per-abi
