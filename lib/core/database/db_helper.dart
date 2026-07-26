@@ -166,6 +166,9 @@ class DBHelper {
   /// Inspects the disk table PRAGMA to dynamically populate missing NOT NULL columns.
   Future<Map<String, dynamic>> _sanitizeMapForLogs(Database db, Map<String, dynamic> inputMap) async {
     final map = Map<String, dynamic>.from(inputMap);
+    if (map['id'] == null) {
+      map.remove('id');
+    }
     final columns = await db.rawQuery('PRAGMA table_info(logs)');
 
     for (var col in columns) {
@@ -176,14 +179,14 @@ class DBHelper {
       if (!map.containsKey(name) || map[name] == null) {
         if (name == 'id') continue;
 
-        if (isNotNull && dfltVal == null) {
-          final String type = (col['type'] as String? ?? '').toUpperCase();
+        final String type = (col['type'] as String? ?? '').toUpperCase();
+        if (isNotNull || dfltVal != null) {
           if (type.contains('INT')) {
-            map[name] = 0;
+            map[name] = dfltVal != null ? int.tryParse(dfltVal.toString()) ?? 0 : 0;
           } else if (type.contains('REAL') || type.contains('NUM') || type.contains('DOUBLE') || type.contains('FLOAT')) {
-            map[name] = 0.0;
+            map[name] = dfltVal != null ? double.tryParse(dfltVal.toString()) ?? 0.0 : 0.0;
           } else {
-            map[name] = 'None';
+            map[name] = dfltVal != null ? dfltVal.toString().replaceAll("'", "") : '';
           }
         }
       }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -348,8 +349,30 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final errorString = e.toString();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save log: $e'), backgroundColor: Colors.redAccent),
+          SnackBar(
+            content: Text(
+              'Failed to save log: $errorString',
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+            ),
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 10),
+            action: SnackBarAction(
+              label: 'COPY',
+              textColor: Colors.white,
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: errorString));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Error log copied to clipboard!'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
+          ),
         );
       }
     }
