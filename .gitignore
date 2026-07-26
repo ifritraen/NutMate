@@ -1,0 +1,30 @@
+.aaa/
+.agents/
+.env
+secrets.*
+sensitive.*
+*.log
+
+# Flutter & Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+
+# Android
+android/.gradle
+android/.kotlin/
+android/captures/
+android/local.properties
+android/app/debug/
+android/app/release/
+*.apk
+
+# IDE & Editors
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
