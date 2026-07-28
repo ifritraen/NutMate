@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/services/backup_service.dart';
 import '../../core/services/biometric_service.dart';
@@ -83,17 +85,22 @@ class SettingsScreen extends ConsumerWidget {
     final logs = ref.read(logsProvider);
     final jsonStr = BackupService.exportToJson(logs);
 
-    final dirPath = await FilePicker.platform.getDirectoryPath();
-    if (dirPath != null) {
-      final filePath = '$dirPath/nutmate_backup_${DateTime.now().millisecondsSinceEpoch}.json';
-      final file = File(filePath);
-      await file.writeAsString(jsonStr);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Exported backup to: $filePath')),
-        );
-      }
+    final tempDir = await getTemporaryDirectory();
+    final fileName = 'nutmate_backup_${DateTime.now().millisecondsSinceEpoch}.json';
+    final file = File('${tempDir.path}/$fileName');
+    await file.writeAsString(jsonStr);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Backup ready ($fileName). Choose folder/app to save...')),
+      );
     }
+
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      text: 'Nutmate Backup File',
+      subject: fileName,
+    );
   }
 
   Future<void> _importBackup(BuildContext context, WidgetRef ref) async {

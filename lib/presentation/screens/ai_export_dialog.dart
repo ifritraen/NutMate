@@ -1,8 +1,8 @@
 import 'dart:io';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/services/ai_export_service.dart';
@@ -74,13 +74,25 @@ class _AiExportDialogState extends ConsumerState<AiExportDialog> {
       );
     }
 
-    final dirPath = await FilePicker.platform.getDirectoryPath();
-    if (dirPath != null) {
-      final filePath = '$dirPath/nutmate_export_${DateTime.now().millisecondsSinceEpoch}.$extension';
-      final file = File(filePath);
-      await file.writeAsString(content);
-      await Share.shareXFiles([XFile(file.path)], text: 'Nutmate Habit Report');
+    final tempDir = await getTemporaryDirectory();
+    final fileName = 'nutmate_export_${DateTime.now().millisecondsSinceEpoch}.$extension';
+    final file = File('${tempDir.path}/$fileName');
+    await file.writeAsString(content);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Export ready ($fileName). Choose folder/app to save...'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
+
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      text: 'Nutmate Habit Report',
+      subject: fileName,
+    );
 
     if (mounted && Navigator.canPop(context)) {
       Navigator.pop(context);
