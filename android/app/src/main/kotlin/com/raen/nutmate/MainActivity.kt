@@ -1,4 +1,4 @@
-package com.nutmate.nutmate
+package com.raen.nutmate
 
 import io.flutter.embedding.android.FlutterActivity
 

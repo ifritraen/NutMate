@@ -1,6 +1,7 @@
-package com.nutmate.nutmate
+package com.raen.nutmate
 
 import android.appwidget.AppWidgetManager
+import com.raen.nutmate.R
 import android.content.Context
 import android.content.SharedPreferences
 import android.widget.RemoteViews

@@ -21,9 +21,10 @@ class DBHelper {
 
     return await openDatabase(
       path,
-      version: 7,
+      version: 8,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
+      onOpen: (db) async => await _ensureColumnsExist(db),
     );
   }
 
@@ -58,6 +59,7 @@ class DBHelper {
         durationMinutes REAL NOT NULL DEFAULT 15.0,
         method TEXT DEFAULT '',
         contentUsed TEXT DEFAULT '[]',
+        stimulus TEXT DEFAULT '💭 Pure Imagination / Fantasy',
         position TEXT DEFAULT 'Lying',
         duringNotes TEXT DEFAULT '',
         satisfaction INTEGER NOT NULL DEFAULT 5,
@@ -100,66 +102,75 @@ class DBHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    final allPossibleColumns = [
-      'ALTER TABLE logs ADD COLUMN preWater TEXT DEFAULT \'None\'',
-      'ALTER TABLE logs ADD COLUMN preWorkout TEXT DEFAULT \'None\'',
-      'ALTER TABLE logs ADD COLUMN preMeditation INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN preMeditationDuration INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN preSleepQuality INTEGER NOT NULL DEFAULT 5',
-      'ALTER TABLE logs ADD COLUMN preSleepHours REAL NOT NULL DEFAULT 7.0',
-      'ALTER TABLE logs ADD COLUMN preNapDuration INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN preMeal TEXT DEFAULT \'None\'',
-      'ALTER TABLE logs ADD COLUMN preCoffee INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN preAlcohol INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN urge INTEGER NOT NULL DEFAULT 5',
-      'ALTER TABLE logs ADD COLUMN mood TEXT DEFAULT \'\'',
-      'ALTER TABLE logs ADD COLUMN trigger TEXT DEFAULT \'\'',
-      'ALTER TABLE logs ADD COLUMN isPlanned INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN location TEXT DEFAULT \'Home\'',
-      'ALTER TABLE logs ADD COLUMN tags TEXT DEFAULT \'[]\'',
-      'ALTER TABLE logs ADD COLUMN beforeNotes TEXT DEFAULT \'\'',
-      'ALTER TABLE logs ADD COLUMN timeSinceLastOrgasmText TEXT DEFAULT \'\'',
-      'ALTER TABLE logs ADD COLUMN lastEdgingCount INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN durationMinutes REAL NOT NULL DEFAULT 15.0',
-      'ALTER TABLE logs ADD COLUMN method TEXT DEFAULT \'\'',
-      'ALTER TABLE logs ADD COLUMN contentUsed TEXT DEFAULT \'[]\'',
-      'ALTER TABLE logs ADD COLUMN position TEXT DEFAULT \'Lying\'',
-      'ALTER TABLE logs ADD COLUMN duringNotes TEXT DEFAULT \'\'',
-      'ALTER TABLE logs ADD COLUMN satisfaction INTEGER NOT NULL DEFAULT 5',
-      'ALTER TABLE logs ADD COLUMN orgasmQuality INTEGER NOT NULL DEFAULT 5',
-      'ALTER TABLE logs ADD COLUMN regret INTEGER NOT NULL DEFAULT 1',
-      'ALTER TABLE logs ADD COLUMN cleanupDurationSeconds INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN afterNotes TEXT DEFAULT \'\'',
-      'ALTER TABLE logs ADD COLUMN postWater TEXT DEFAULT \'None\'',
-      'ALTER TABLE logs ADD COLUMN postStretch INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN postStretchDuration INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN postMeal TEXT DEFAULT \'None\'',
-      'ALTER TABLE logs ADD COLUMN postNap INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN postNapDuration INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN postMeditation INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN postMeditationDuration INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN edgingCountBeforeOrgasm INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN nearOrgasmCount INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN didOrgasmOccur INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN endingReason TEXT DEFAULT \'\'',
-      'ALTER TABLE logs ADD COLUMN waterBeforeMl INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN waterAfterMl INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN sleepQuality INTEGER NOT NULL DEFAULT 5',
-      'ALTER TABLE logs ADD COLUMN sleepDurationHours REAL NOT NULL DEFAULT 7.0',
-      'ALTER TABLE logs ADD COLUMN reason TEXT DEFAULT \'\'',
-      'ALTER TABLE logs ADD COLUMN exerciseDone TEXT DEFAULT \'None\'',
-      'ALTER TABLE logs ADD COLUMN exerciseMinutes INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN meditationDone INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN meditationMinutes INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN mealEaten TEXT DEFAULT \'None\'',
-      'ALTER TABLE logs ADD COLUMN napTaken INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE logs ADD COLUMN stimulus TEXT DEFAULT \'💭 Pure Imagination / Fantasy\'',
-    ];
+    await _ensureColumnsExist(db);
+  }
 
-    for (var col in allPossibleColumns) {
-      try {
-        await db.execute(col);
-      } catch (_) {}
+  Future<void> _ensureColumnsExist(Database db) async {
+    final columns = await db.rawQuery('PRAGMA table_info(logs)');
+    final columnNames = columns.map((c) => c['name'] as String).toSet();
+
+    final requiredColumns = {
+      'stimulus': 'ALTER TABLE logs ADD COLUMN stimulus TEXT DEFAULT \'💭 Pure Imagination / Fantasy\'',
+      'preWater': 'ALTER TABLE logs ADD COLUMN preWater TEXT DEFAULT \'None\'',
+      'preWorkout': 'ALTER TABLE logs ADD COLUMN preWorkout TEXT DEFAULT \'None\'',
+      'preMeditation': 'ALTER TABLE logs ADD COLUMN preMeditation INTEGER NOT NULL DEFAULT 0',
+      'preMeditationDuration': 'ALTER TABLE logs ADD COLUMN preMeditationDuration INTEGER NOT NULL DEFAULT 0',
+      'preSleepQuality': 'ALTER TABLE logs ADD COLUMN preSleepQuality INTEGER NOT NULL DEFAULT 5',
+      'preSleepHours': 'ALTER TABLE logs ADD COLUMN preSleepHours REAL NOT NULL DEFAULT 7.0',
+      'preNapDuration': 'ALTER TABLE logs ADD COLUMN preNapDuration INTEGER NOT NULL DEFAULT 0',
+      'preMeal': 'ALTER TABLE logs ADD COLUMN preMeal TEXT DEFAULT \'None\'',
+      'preCoffee': 'ALTER TABLE logs ADD COLUMN preCoffee INTEGER NOT NULL DEFAULT 0',
+      'preAlcohol': 'ALTER TABLE logs ADD COLUMN preAlcohol INTEGER NOT NULL DEFAULT 0',
+      'urge': 'ALTER TABLE logs ADD COLUMN urge INTEGER NOT NULL DEFAULT 5',
+      'mood': 'ALTER TABLE logs ADD COLUMN mood TEXT DEFAULT \'\'',
+      'trigger': 'ALTER TABLE logs ADD COLUMN trigger TEXT DEFAULT \'\'',
+      'isPlanned': 'ALTER TABLE logs ADD COLUMN isPlanned INTEGER NOT NULL DEFAULT 0',
+      'location': 'ALTER TABLE logs ADD COLUMN location TEXT DEFAULT \'Home\'',
+      'tags': 'ALTER TABLE logs ADD COLUMN tags TEXT DEFAULT \'[]\'',
+      'beforeNotes': 'ALTER TABLE logs ADD COLUMN beforeNotes TEXT DEFAULT \'\'',
+      'timeSinceLastOrgasmText': 'ALTER TABLE logs ADD COLUMN timeSinceLastOrgasmText TEXT DEFAULT \'\'',
+      'lastEdgingCount': 'ALTER TABLE logs ADD COLUMN lastEdgingCount INTEGER NOT NULL DEFAULT 0',
+      'durationMinutes': 'ALTER TABLE logs ADD COLUMN durationMinutes REAL NOT NULL DEFAULT 15.0',
+      'method': 'ALTER TABLE logs ADD COLUMN method TEXT DEFAULT \'\'',
+      'contentUsed': 'ALTER TABLE logs ADD COLUMN contentUsed TEXT DEFAULT \'[]\'',
+      'position': 'ALTER TABLE logs ADD COLUMN position TEXT DEFAULT \'Lying\'',
+      'duringNotes': 'ALTER TABLE logs ADD COLUMN duringNotes TEXT DEFAULT \'\'',
+      'satisfaction': 'ALTER TABLE logs ADD COLUMN satisfaction INTEGER NOT NULL DEFAULT 5',
+      'orgasmQuality': 'ALTER TABLE logs ADD COLUMN orgasmQuality INTEGER NOT NULL DEFAULT 5',
+      'regret': 'ALTER TABLE logs ADD COLUMN regret INTEGER NOT NULL DEFAULT 1',
+      'cleanupDurationSeconds': 'ALTER TABLE logs ADD COLUMN cleanupDurationSeconds INTEGER NOT NULL DEFAULT 0',
+      'afterNotes': 'ALTER TABLE logs ADD COLUMN afterNotes TEXT DEFAULT \'\'',
+      'postWater': 'ALTER TABLE logs ADD COLUMN postWater TEXT DEFAULT \'None\'',
+      'postStretch': 'ALTER TABLE logs ADD COLUMN postStretch INTEGER NOT NULL DEFAULT 0',
+      'postStretchDuration': 'ALTER TABLE logs ADD COLUMN postStretchDuration INTEGER NOT NULL DEFAULT 0',
+      'postMeal': 'ALTER TABLE logs ADD COLUMN postMeal TEXT DEFAULT \'None\'',
+      'postNap': 'ALTER TABLE logs ADD COLUMN postNap INTEGER NOT NULL DEFAULT 0',
+      'postNapDuration': 'ALTER TABLE logs ADD COLUMN postNapDuration INTEGER NOT NULL DEFAULT 0',
+      'postMeditation': 'ALTER TABLE logs ADD COLUMN postMeditation INTEGER NOT NULL DEFAULT 0',
+      'postMeditationDuration': 'ALTER TABLE logs ADD COLUMN postMeditationDuration INTEGER NOT NULL DEFAULT 0',
+      'edgingCountBeforeOrgasm': 'ALTER TABLE logs ADD COLUMN edgingCountBeforeOrgasm INTEGER NOT NULL DEFAULT 0',
+      'nearOrgasmCount': 'ALTER TABLE logs ADD COLUMN nearOrgasmCount INTEGER NOT NULL DEFAULT 0',
+      'didOrgasmOccur': 'ALTER TABLE logs ADD COLUMN didOrgasmOccur INTEGER NOT NULL DEFAULT 0',
+      'endingReason': 'ALTER TABLE logs ADD COLUMN endingReason TEXT DEFAULT \'\'',
+      'waterBeforeMl': 'ALTER TABLE logs ADD COLUMN waterBeforeMl INTEGER NOT NULL DEFAULT 0',
+      'waterAfterMl': 'ALTER TABLE logs ADD COLUMN waterAfterMl INTEGER NOT NULL DEFAULT 0',
+      'sleepQuality': 'ALTER TABLE logs ADD COLUMN sleepQuality INTEGER NOT NULL DEFAULT 5',
+      'sleepDurationHours': 'ALTER TABLE logs ADD COLUMN sleepDurationHours REAL NOT NULL DEFAULT 7.0',
+      'reason': 'ALTER TABLE logs ADD COLUMN reason TEXT DEFAULT \'\'',
+      'exerciseDone': 'ALTER TABLE logs ADD COLUMN exerciseDone TEXT DEFAULT \'None\'',
+      'exerciseMinutes': 'ALTER TABLE logs ADD COLUMN exerciseMinutes INTEGER NOT NULL DEFAULT 0',
+      'meditationDone': 'ALTER TABLE logs ADD COLUMN meditationDone INTEGER NOT NULL DEFAULT 0',
+      'meditationMinutes': 'ALTER TABLE logs ADD COLUMN meditationMinutes INTEGER NOT NULL DEFAULT 0',
+      'mealEaten': 'ALTER TABLE logs ADD COLUMN mealEaten TEXT DEFAULT \'None\'',
+      'napTaken': 'ALTER TABLE logs ADD COLUMN napTaken INTEGER NOT NULL DEFAULT 0',
+    };
+
+    for (var entry in requiredColumns.entries) {
+      if (!columnNames.contains(entry.key)) {
+        try {
+          await db.execute(entry.value);
+        } catch (_) {}
+      }
     }
   }
 

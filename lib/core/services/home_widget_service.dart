@@ -2,7 +2,7 @@ import 'package:home_widget/home_widget.dart';
 import '../../domain/models/stats_summary.dart';
 
 class HomeWidgetService {
-  static const String appGroupId = 'group.com.nutmate.nutmate';
+  static const String appGroupId = 'group.com.raen.nutmate';
   static const String androidWidgetProvider = 'NutmateWidgetProvider';
 
   static Future<void> updateHomeWidget(StatsSummary stats) async {
