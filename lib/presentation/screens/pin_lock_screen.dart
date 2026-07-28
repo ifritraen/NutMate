@@ -60,7 +60,11 @@ class _PinLockScreenState extends ConsumerState<PinLockScreen> {
 
   void _verifyPin() {
     final settings = ref.read(settingsProvider);
-    if (_enteredPin == '0000') {
+
+    final isCustomDecoy = settings.decoyPinEnabled && settings.decoyPinHash != null && BiometricService.verifyPin(_enteredPin, settings.decoyPinHash!);
+    final isDefaultDecoy = !settings.decoyPinEnabled && _enteredPin == '0000';
+
+    if (isCustomDecoy || isDefaultDecoy) {
       HapticService.heavyImpact();
       ref.read(isLockedProvider.notifier).setLocked(false);
       return;

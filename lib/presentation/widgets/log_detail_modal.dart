@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../domain/models/log_entry.dart';
+import '../providers/app_providers.dart';
 import '../screens/add_log_screen.dart';
 import 'glass_card.dart';
 
-class LogDetailModal extends StatelessWidget {
+class LogDetailModal extends ConsumerWidget {
   final LogEntry log;
   final String intervalText;
 
@@ -26,7 +28,7 @@ class LogDetailModal extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isMast = log.type == SessionType.masturbation;
     final iconEmoji = isMast ? '💦' : (log.type == SessionType.edging ? '⚡' : '🔥');
@@ -52,37 +54,55 @@ class LogDetailModal extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Text(iconEmoji, style: const TextStyle(fontSize: 24)),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          titleText,
-                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Text(iconEmoji, style: const TextStyle(fontSize: 24)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              titleText,
+                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(dateFormat.format(log.createdAt), style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                          ],
                         ),
-                        Text(dateFormat.format(log.createdAt), style: const TextStyle(color: Colors.white54, fontSize: 11)),
-                      ],
+                      ),
+                    ],
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
+                      tooltip: 'Delete Log',
+                      onPressed: () => _confirmDelete(context, ref),
+                    ),
+                    const SizedBox(width: 4),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => AddLogScreen(existingLog: log)),
+                        );
+                      },
+                      icon: const Icon(Icons.edit, size: 16),
+                      label: const Text('Edit'),
                     ),
                   ],
-                ),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => AddLogScreen(existingLog: log)),
-                    );
-                  },
-                  icon: const Icon(Icons.edit, size: 16),
-                  label: const Text('Edit'),
                 ),
               ],
             ),
@@ -253,6 +273,42 @@ class LogDetailModal extends StatelessWidget {
         children: [
           Text(label, style: const TextStyle(color: Colors.white60, fontSize: 13)),
           Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E2C),
+        title: const Text('Delete Log Entry?', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Are you sure you want to permanently delete this log entry? This action cannot be undone.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              Navigator.pop(context);
+              if (log.id != null) {
+                await ref.read(logsProvider.notifier).deleteLog(log.id!);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Log entry deleted successfully')),
+                  );
+                }
+              }
+            },
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );

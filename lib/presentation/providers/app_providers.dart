@@ -117,6 +117,18 @@ class SettingsNotifier extends Notifier<AppSettings> {
     }
   }
 
+  Future<void> setDecoyPin(String? pin) async {
+    if (pin == null || pin.isEmpty) {
+      await DBHelper.instance.saveSetting('decoyPinEnabled', 'false');
+      await DBHelper.instance.saveSetting('decoyPinHash', '');
+      state = state.copyWith(decoyPinEnabled: false, decoyPinHash: null);
+    } else {
+      await DBHelper.instance.saveSetting('decoyPinEnabled', 'true');
+      await DBHelper.instance.saveSetting('decoyPinHash', pin);
+      state = state.copyWith(decoyPinEnabled: true, decoyPinHash: pin);
+    }
+  }
+
   Future<void> setBiometric(bool enabled) async {
     await DBHelper.instance.saveSetting('biometricEnabled', enabled ? 'true' : 'false');
     state = state.copyWith(biometricEnabled: enabled);

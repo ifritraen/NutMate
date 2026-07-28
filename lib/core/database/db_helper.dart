@@ -280,6 +280,8 @@ class DBHelper {
     final pinEnabledStr = await getSetting('pinEnabled') ?? 'false';
     final pinHash = await getSetting('pinHash');
     final biometricStr = await getSetting('biometricEnabled') ?? 'false';
+    final decoyEnabledStr = await getSetting('decoyPinEnabled') ?? 'false';
+    final decoyHash = await getSetting('decoyPinHash');
     final streakStr = await getSetting('lastStreakResetTime');
     final edgeCount = await getSettingInt('currentEdgeCount') ?? 0;
     final arousalCount = await getSettingInt('currentArousalCount') ?? 0;
@@ -289,6 +291,8 @@ class DBHelper {
       pinEnabled: pinEnabledStr == 'true',
       pinHash: pinHash,
       biometricEnabled: biometricStr == 'true',
+      decoyPinEnabled: decoyEnabledStr == 'true',
+      decoyPinHash: decoyHash,
       lastStreakResetTime: streakStr != null && streakStr.isNotEmpty ? DateTime.tryParse(streakStr) : null,
       currentEdgeCount: edgeCount,
       currentArousalCount: arousalCount,

@@ -16,10 +16,19 @@ class HomeWidgetService {
       await HomeWidget.saveWidgetData<String>('avg_interval', '${stats.avgIntervalDays.toStringAsFixed(1)}d');
       await HomeWidget.saveWidgetData<String>('avg_satisfaction', '${stats.avgSatisfaction.toStringAsFixed(1)}/10');
 
-      await HomeWidget.updateWidget(
-        name: androidWidgetProvider,
-        androidName: androidWidgetProvider,
-      );
+      final providers = [
+        'NutmateWidgetProvider',
+        'NutmateMasterWidgetProvider',
+        'NutmateCompactWidgetProvider',
+        'NutmateMinimalWidgetProvider',
+      ];
+
+      for (var provider in providers) {
+        await HomeWidget.updateWidget(
+          name: provider,
+          androidName: provider,
+        );
+      }
     } catch (_) {
       // Gracefully handle platform/widget errors if widgets are not installed
     }

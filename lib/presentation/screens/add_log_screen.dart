@@ -378,6 +378,41 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
     }
   }
 
+  void _confirmDeleteLog() {
+    if (widget.existingLog?.id == null) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E2C),
+        title: const Text('Delete Log Entry?', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Are you sure you want to permanently delete this log entry? This action cannot be undone.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(logsProvider.notifier).deleteLog(widget.existingLog!.id!);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Log entry deleted successfully')),
+                );
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1015,11 +1050,20 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
             left: 0,
             right: 0,
             child: FloatingTopBar(
-              title: widget.existingLog != null ? 'Edit Log Entry' : 'Log New Session',
+              title: settings.stealthMode
+                  ? (widget.existingLog != null ? 'Edit Note Entry' : 'New Note Entry')
+                  : (widget.existingLog != null ? 'Edit Log Entry' : 'Log New Session'),
               isVisible: widget.isNavVisible,
               actions: [
+                if (widget.existingLog != null)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 24),
+                    tooltip: 'Delete Log',
+                    onPressed: _confirmDeleteLog,
+                  ),
                 IconButton(
-                  icon: Icon(Icons.check, color: AppTheme.secondaryCyan, size: 28),
+                  icon: const Icon(Icons.check, color: AppTheme.secondaryCyan, size: 26),
+                  tooltip: 'Save Log',
                   onPressed: _saveLog,
                 ),
               ],

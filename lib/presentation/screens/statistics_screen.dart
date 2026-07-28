@@ -252,7 +252,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
             left: 0,
             right: 0,
             child: FloatingTopBar(
-              title: 'Interactive Statistics',
+              title: settings.stealthMode ? 'Activity Summary' : 'Interactive Statistics',
               isVisible: widget.isNavVisible,
               actions: [
                 IconButton(

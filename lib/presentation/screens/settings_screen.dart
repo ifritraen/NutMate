@@ -48,6 +48,36 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  void _showDecoyPinDialog(BuildContext context, WidgetRef ref) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Set Custom Decoy PIN'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          maxLength: 4,
+          obscureText: true,
+          decoration: const InputDecoration(hintText: 'Enter 4-digit decoy PIN'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (controller.text.length == 4) {
+                final hash = BiometricService.hashPin(controller.text);
+                await ref.read(settingsProvider.notifier).setDecoyPin(hash);
+                if (ctx.mounted) Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Save Decoy PIN'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _exportBackup(BuildContext context, WidgetRef ref) async {
     HapticService.mediumImpact();
     final logs = ref.read(logsProvider);
@@ -177,10 +207,9 @@ class SettingsScreen extends ConsumerWidget {
                         ref.read(settingsProvider.notifier).setStealthMode(val);
                       },
                     ),
-                    const Divider(color: Colors.white10),
                     SwitchListTile(
                       title: const Text('PIN Lock'),
-                      subtitle: Text(settings.pinEnabled ? 'PIN Lock Active (Supports Decoy PIN "0000")' : 'Disabled'),
+                      subtitle: Text(settings.pinEnabled ? 'PIN Lock Active' : 'Disabled'),
                       value: settings.pinEnabled,
                       onChanged: (val) {
                         HapticService.selectionClick();
@@ -193,11 +222,37 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     const Divider(color: Colors.white10),
                     SwitchListTile(
+                      title: const Text('Custom Decoy PIN'),
+                      subtitle: Text(settings.decoyPinEnabled ? 'Custom Decoy PIN Configured' : 'Default Decoy PIN ("0000")'),
+                      value: settings.decoyPinEnabled,
+                      onChanged: (val) {
+                        HapticService.selectionClick();
+                        if (val) {
+                          _showDecoyPinDialog(context, ref);
+                        } else {
+                          ref.read(settingsProvider.notifier).setDecoyPin(null);
+                        }
+                      },
+                    ),
+                    const Divider(color: Colors.white10),
+                    SwitchListTile(
                       title: const Text('Biometric Unlock'),
                       subtitle: const Text('Use Fingerprint / Face ID to open app'),
                       value: settings.biometricEnabled,
-                      onChanged: (val) {
+                      onChanged: (val) async {
                         HapticService.selectionClick();
+                        if (val) {
+                          final available = await BiometricService.isBiometricsAvailable();
+                          if (!available && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Biometric authentication is not supported or configured on this device'),
+                                backgroundColor: Colors.orangeAccent,
+                              ),
+                            );
+                            return;
+                          }
+                        }
                         ref.read(settingsProvider.notifier).setBiometric(val);
                       },
                     ),

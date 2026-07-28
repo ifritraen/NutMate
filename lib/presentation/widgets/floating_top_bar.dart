@@ -24,28 +24,34 @@ class FloatingTopBar extends StatelessWidget {
       curve: Curves.easeInOut,
       offset: isVisible ? Offset.zero : const Offset(0, -1.5),
       child: SafeArea(
+        bottom: false,
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
           child: GlassCard(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            borderRadius: BorderRadius.circular(24),
-            child: Row(
-              children: [
-                if (leading != null) leading!,
-                if (leading != null) const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+            borderRadius: BorderRadius.circular(14),
+            child: IconTheme(
+              data: const IconThemeData(size: 20),
+              child: Row(
+                children: [
+                  if (leading != null) leading!,
+                  if (leading != null) const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        fontSize: 14,
+                        height: 1.1,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                if (actions != null) ...actions!,
-              ],
+                  if (actions != null) ...actions!,
+                ],
+              ),
             ),
           ),
         ),

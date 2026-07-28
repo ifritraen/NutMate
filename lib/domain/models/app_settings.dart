@@ -15,6 +15,8 @@ class AppSettings {
   final bool streakFrozen;
   final bool anonymizeExports;
   final bool compactTimeline;
+  final bool decoyPinEnabled;
+  final String? decoyPinHash;
 
   AppSettings({
     this.themeMode = AppThemeMode.dark,
@@ -29,6 +31,8 @@ class AppSettings {
     this.streakFrozen = false,
     this.anonymizeExports = false,
     this.compactTimeline = false,
+    this.decoyPinEnabled = false,
+    this.decoyPinHash,
   });
 
   AppSettings copyWith({
@@ -44,6 +48,8 @@ class AppSettings {
     bool? streakFrozen,
     bool? anonymizeExports,
     bool? compactTimeline,
+    bool? decoyPinEnabled,
+    String? decoyPinHash,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -58,6 +64,8 @@ class AppSettings {
       streakFrozen: streakFrozen ?? this.streakFrozen,
       anonymizeExports: anonymizeExports ?? this.anonymizeExports,
       compactTimeline: compactTimeline ?? this.compactTimeline,
+      decoyPinEnabled: decoyPinEnabled ?? this.decoyPinEnabled,
+      decoyPinHash: decoyPinHash ?? this.decoyPinHash,
     );
   }
 }
