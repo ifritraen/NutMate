@@ -42,15 +42,7 @@ jobs:
       - name: Restore Consistent Release Signing Keystore
         run: |
           mkdir -p android/app
-          keytool -genkeypair -v \
-            -keystore android/app/upload-keystore.jks \
-            -alias upload \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass nutmatepassword123 \
-            -keypass nutmatepassword123 \
-            -dname "CN=NutMate, OU=Mobile, O=Raen, L=Dhaka, ST=Dhaka, C=BD"
+          base64 -d .github/workflows/upload-keystore.b64 > android/app/upload-keystore.jks
 
       - name: Run Static Analysis
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
