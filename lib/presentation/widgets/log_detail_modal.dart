@@ -143,14 +143,15 @@ class LogDetailModal extends ConsumerWidget {
                         Text('Session Overview', style: theme.textTheme.titleSmall?.copyWith(color: AppTheme.secondaryCyan, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 12),
                         _buildDetailRow('Duration', '${log.durationMinutes.toStringAsFixed(0)} mins'),
-                        _buildDetailRow('Urge Level', '${log.urge}/10'),
+                        _buildDetailRow('Urge Level', '🔥 ${log.urge}/10'),
+                        _buildDetailRow('Method Used', log.method.isEmpty ? 'Hand' : log.method),
+                        _buildDetailRow('Location', log.location.isEmpty ? 'Home' : log.location),
+                        _buildDetailRow('Sleep Quality', '🌙 ${log.preSleepQuality}/10 (${log.preSleepHours}h)'),
                         _buildDetailRow('Mood', log.mood.isEmpty ? 'N/A' : log.mood),
                         _buildDetailRow('Trigger', log.trigger.isEmpty ? 'N/A' : log.trigger),
                         _buildDetailRow('Stimulus / Media', log.stimulus.isEmpty ? 'N/A' : log.stimulus),
                         _buildDetailRow('Body Position', log.position),
-                        _buildDetailRow('Location', log.location.isEmpty ? 'Home' : log.location),
                         _buildDetailRow('Session Type', log.isPlanned ? 'Planned' : 'Impulsive'),
-                        if (log.method.isNotEmpty) _buildDetailRow('Method', log.method),
                         if (log.tags.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Wrap(

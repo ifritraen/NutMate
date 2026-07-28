@@ -749,12 +749,45 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
                           onSingleSelected: (val) => setState(() => _trigger = val),
                         ),
                         const SizedBox(height: 16),
+                        Text('🔥 Urge Level: ${_urge.round()}/10', style: theme.textTheme.titleMedium),
+                        Slider(
+                          value: _urge,
+                          min: 1,
+                          max: 10,
+                          divisions: 9,
+                          activeColor: Colors.orangeAccent,
+                          onChanged: (val) {
+                            HapticService.selectionClick();
+                            setState(() => _urge = val);
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        ChipSelector(
+                          title: '📍 Location',
+                          options: const ['Home', 'Bedroom', 'Bathroom', 'Couch', 'Hotel', 'Other'],
+                          selectedSingle: _location,
+                          onSingleSelected: (val) => setState(() => _location = val),
+                        ),
+                        const SizedBox(height: 16),
+                        Text('🌙 Prior Sleep Quality: ${_preSleepQuality.round()}/10', style: theme.textTheme.titleMedium),
+                        Slider(
+                          value: _preSleepQuality,
+                          min: 1,
+                          max: 10,
+                          divisions: 9,
+                          activeColor: Colors.purpleAccent,
+                          onChanged: (val) {
+                            HapticService.selectionClick();
+                            setState(() => _preSleepQuality = val);
+                          },
+                        ),
+                        const SizedBox(height: 16),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           title: const Text('Planned or Impulsive?'),
                           subtitle: Text(_isPlanned ? 'Planned ahead' : 'Impulsive urge'),
                           value: _isPlanned,
-                          activeColor: AppTheme.secondaryCyan,
+                          activeThumbColor: AppTheme.secondaryCyan,
                           onChanged: (val) => setState(() => _isPlanned = val),
                         ),
                       ],
@@ -778,6 +811,13 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        ChipSelector(
+                          title: '✋ Method Used',
+                          options: const ['Hand', 'Toys', 'Edging Device', 'Partner', 'Fleshlight', 'Other'],
+                          selectedSingle: _method,
+                          onSingleSelected: (val) => setState(() => _method = val),
+                        ),
+                        const SizedBox(height: 16),
                         ChipSelector(
                           title: 'Stimulus / Content Used',
                           options: const [

@@ -160,7 +160,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
                                               Text(dateFormat.format(log.createdAt), style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                                              Text('${log.durationMinutes.toStringAsFixed(0)} mins • Urge: ${log.urge}/10 • ${log.location}', style: const TextStyle(color: Colors.white60, fontSize: 11)),
+                                              Text('${log.durationMinutes.toStringAsFixed(0)} mins • 🔥Urge: ${log.urge}/10 • ✋${log.method.isEmpty ? "Hand" : log.method} • 📍${log.location.isEmpty ? "Home" : log.location} • 🌙Sleep: ${log.preSleepQuality}/10', style: const TextStyle(color: Colors.white60, fontSize: 11)),
                                             ],
                                           ),
                                         ),
@@ -239,15 +239,17 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                                         ),
                                       ),
                                       const SizedBox(height: 10),
-                                      Row(
-                                        children: [
-                                          Text('Duration: ${log.durationMinutes.toStringAsFixed(0)} mins', style: const TextStyle(color: Colors.white70)),
-                                          const SizedBox(width: 16),
-                                          Text('Urge: ${log.urge}/10', style: const TextStyle(color: Colors.white70)),
-                                          const SizedBox(width: 16),
-                                          Text('Method: ${log.method}', style: const TextStyle(color: Colors.white60)),
-                                        ],
-                                      ),
+                                       Wrap(
+                                         spacing: 12,
+                                         runSpacing: 4,
+                                         children: [
+                                           Text('⏱️ ${log.durationMinutes.toStringAsFixed(0)} mins', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                                           Text('🔥 Urge: ${log.urge}/10', style: const TextStyle(color: Colors.orangeAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                                           Text('✋ Method: ${log.method.isEmpty ? 'Hand' : log.method}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                                           Text('📍 Loc: ${log.location.isEmpty ? 'Home' : log.location}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                                           Text('🌙 Sleep: ${log.preSleepQuality}/10', style: const TextStyle(color: Colors.purpleAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                                         ],
+                                       ),
                                       if (log.tags.isNotEmpty) ...[
                                         const SizedBox(height: 8),
                                         Wrap(
