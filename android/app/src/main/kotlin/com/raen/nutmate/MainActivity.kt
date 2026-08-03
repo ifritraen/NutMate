@@ -5,9 +5,12 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterFragmentActivity() {
-    private const val CHANNEL = "com.raen.nutmate/widget_update"
+    companion object {
+        private const val CHANNEL = "com.raen.nutmate/widget_update"
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+
         super.configureFlutterEngine(flutterEngine)
 
         // Schedule default 5-min widget updates on startup
