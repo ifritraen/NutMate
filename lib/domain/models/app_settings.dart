@@ -17,6 +17,7 @@ class AppSettings {
   final bool compactTimeline;
   final bool decoyPinEnabled;
   final String? decoyPinHash;
+  final int widgetUpdateIntervalMinutes;
 
   AppSettings({
     this.themeMode = AppThemeMode.dark,
@@ -33,6 +34,7 @@ class AppSettings {
     this.compactTimeline = false,
     this.decoyPinEnabled = false,
     this.decoyPinHash,
+    this.widgetUpdateIntervalMinutes = 5,
   });
 
   AppSettings copyWith({
@@ -50,6 +52,7 @@ class AppSettings {
     bool? compactTimeline,
     bool? decoyPinEnabled,
     String? decoyPinHash,
+    int? widgetUpdateIntervalMinutes,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -66,6 +69,8 @@ class AppSettings {
       compactTimeline: compactTimeline ?? this.compactTimeline,
       decoyPinEnabled: decoyPinEnabled ?? this.decoyPinEnabled,
       decoyPinHash: decoyPinHash ?? this.decoyPinHash,
+      widgetUpdateIntervalMinutes: widgetUpdateIntervalMinutes ?? this.widgetUpdateIntervalMinutes,
     );
   }
 }
+

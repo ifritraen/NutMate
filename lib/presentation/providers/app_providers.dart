@@ -134,6 +134,12 @@ class SettingsNotifier extends Notifier<AppSettings> {
     state = state.copyWith(biometricEnabled: enabled);
   }
 
+  Future<void> setWidgetUpdateIntervalMinutes(int minutes) async {
+    await DBHelper.instance.saveSetting('widgetUpdateIntervalMinutes', minutes.toString());
+    state = state.copyWith(widgetUpdateIntervalMinutes: minutes);
+    await HomeWidgetService.setUpdateInterval(minutes);
+  }
+
   Future<void> updateEdgeCount(int count) async {
     await DBHelper.instance.saveSetting('currentEdgeCount', count.toString());
     state = state.copyWith(currentEdgeCount: count);
@@ -153,9 +159,14 @@ final statsProvider = Provider<StatsSummary>((ref) {
     activeEdgeCount: settings.currentEdgeCount,
   );
 
-  HomeWidgetService.updateHomeWidget(summary);
+  HomeWidgetService.updateHomeWidget(
+    summary,
+    lastOrgasmTime: settings.lastStreakResetTime,
+    isFrozen: settings.streakFrozen,
+  );
   return summary;
 });
+
 
 // --- LOCK STATE NOTIFIER ---
 class IsLockedNotifier extends Notifier<bool> {

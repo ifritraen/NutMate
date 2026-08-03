@@ -95,6 +95,10 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
   double _nearOrgasmCount = 1.0;
   String _endingReason = '';
 
+  // Edging & Arousal Manual Overrides
+  int? _manualEdgeCount;
+  int? _manualArousalCount;
+
   // Session DateTime for Backdating/Editing
   DateTime _sessionDateTime = DateTime.now();
 
@@ -157,6 +161,8 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
 
       _nearOrgasmCount = log.nearOrgasmCount.toDouble();
       _endingReason = log.endingReason;
+      _manualEdgeCount = log.edgingCountBeforeOrgasm;
+      _manualArousalCount = log.arousalCountBeforeOrgasm;
     } else {
       _sessionType = SessionType.masturbation;
       _preWater = 'None';
@@ -202,8 +208,11 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
 
       _nearOrgasmCount = 1.0;
       _endingReason = '';
+      _manualEdgeCount = null;
+      _manualArousalCount = null;
     }
   }
+
 
   @override
   void dispose() {
@@ -315,11 +324,12 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
         postNap: _postNap,
         postNapDuration: _postNapDuration.round(),
         postMeditation: _postMeditation,
-        postMeditationDuration: _postMeditationDuration.round(),
-        edgingCountBeforeOrgasm: _sessionType == SessionType.masturbation ? settings.currentEdgeCount : 0,
+        edgingCountBeforeOrgasm: _sessionType == SessionType.masturbation ? (_manualEdgeCount ?? settings.currentEdgeCount) : 0,
+        arousalCountBeforeOrgasm: _sessionType == SessionType.masturbation ? (_manualArousalCount ?? settings.currentArousalCount) : 0,
         nearOrgasmCount: _nearOrgasmCount.round(),
         endingReason: _endingReason,
       );
+
 
       if (widget.existingLog != null) {
         await ref.read(logsProvider.notifier).updateLog(log);
@@ -718,7 +728,7 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
                               Container(width: 1, height: 28, color: Colors.white12),
                               Column(
                                 children: [
-                                  const Text('Last Edging Count', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                                  const Text('Tracked Edging Count', style: TextStyle(color: Colors.white54, fontSize: 11)),
                                   const SizedBox(height: 4),
                                   Text('${settings.currentEdgeCount} times', style: const TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold, fontSize: 14)),
                                 ],
@@ -726,6 +736,52 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
                             ],
                           ),
                         ),
+                        if (_sessionType == SessionType.masturbation) ...[
+                          const SizedBox(height: 16),
+                          _buildCounterTile(
+                            title: '⚡ Edging Count Before Orgasm',
+                            subtitle: 'Manual override or default automatic tracker value',
+                            count: _manualEdgeCount ?? settings.currentEdgeCount,
+                            isManual: _manualEdgeCount != null,
+                            accentColor: Colors.amberAccent,
+                            onDecrement: () {
+                              HapticService.selectionClick();
+                              final current = _manualEdgeCount ?? settings.currentEdgeCount;
+                              setState(() => _manualEdgeCount = (current - 1).clamp(0, 999));
+                            },
+                            onIncrement: () {
+                              HapticService.selectionClick();
+                              final current = _manualEdgeCount ?? settings.currentEdgeCount;
+                              setState(() => _manualEdgeCount = current + 1);
+                            },
+                            onReset: () {
+                              HapticService.selectionClick();
+                              setState(() => _manualEdgeCount = null);
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          _buildCounterTile(
+                            title: '🔥 Arousal Count Before Orgasm',
+                            subtitle: 'Manual override or default automatic tracker value',
+                            count: _manualArousalCount ?? settings.currentArousalCount,
+                            isManual: _manualArousalCount != null,
+                            accentColor: Colors.deepOrangeAccent,
+                            onDecrement: () {
+                              HapticService.selectionClick();
+                              final current = _manualArousalCount ?? settings.currentArousalCount;
+                              setState(() => _manualArousalCount = (current - 1).clamp(0, 999));
+                            },
+                            onIncrement: () {
+                              HapticService.selectionClick();
+                              final current = _manualArousalCount ?? settings.currentArousalCount;
+                              setState(() => _manualArousalCount = current + 1);
+                            },
+                            onReset: () {
+                              HapticService.selectionClick();
+                              setState(() => _manualArousalCount = null);
+                            },
+                          ),
+                        ],
                         const SizedBox(height: 16),
                         ChipSelector(
                           title: 'Mood',
@@ -749,7 +805,53 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
                           onSingleSelected: (val) => setState(() => _trigger = val),
                         ),
                         const SizedBox(height: 16),
-                        Text('🔥 Urge Level: ${_urge.round()}/10', style: theme.textTheme.titleMedium),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('🔥 Urge Level: ${_urge.round()}/10', style: theme.textTheme.titleMedium),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.remove, size: 18, color: Colors.white70),
+                                    onPressed: _urge > 1
+                                        ? () {
+                                            HapticService.selectionClick();
+                                            setState(() => _urge = (_urge - 1).clamp(1.0, 10.0));
+                                          }
+                                        : null,
+                                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                  Container(
+                                    constraints: const BoxConstraints(minWidth: 28),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      '${_urge.round()}',
+                                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.orangeAccent),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.add, size: 18, color: Colors.white70),
+                                    onPressed: _urge < 10
+                                        ? () {
+                                            HapticService.selectionClick();
+                                            setState(() => _urge = (_urge + 1).clamp(1.0, 10.0));
+                                          }
+                                        : null,
+                                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                         Slider(
                           value: _urge,
                           min: 1,
@@ -761,6 +863,7 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
                             setState(() => _urge = val);
                           },
                         ),
+
                         const SizedBox(height: 16),
                         ChipSelector(
                           title: '📍 Location',
@@ -1114,6 +1217,97 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
     );
   }
 
+  Widget _buildCounterTile({
+    required String title,
+    required String subtitle,
+    required int count,
+    required bool isManual,
+    required VoidCallback onDecrement,
+    required VoidCallback onIncrement,
+    required VoidCallback onReset,
+    required Color accentColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isManual ? accentColor.withOpacity(0.5) : Colors.white10),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white)),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isManual ? accentColor.withOpacity(0.2) : Colors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        isManual ? 'Manual Entry' : 'Auto Default',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: isManual ? accentColor : Colors.white70,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+              ],
+            ),
+          ),
+          if (isManual)
+            IconButton(
+              icon: const Icon(Icons.refresh_outlined, size: 18, color: Colors.white54),
+              tooltip: 'Reset to Auto Default',
+              onPressed: onReset,
+            ),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.remove, size: 18, color: Colors.white70),
+                  onPressed: onDecrement,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  padding: EdgeInsets.zero,
+                ),
+                Container(
+                  constraints: const BoxConstraints(minWidth: 28),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '$count',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: accentColor),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add, size: 18, color: Colors.white70),
+                  onPressed: onIncrement,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  padding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSectionHeader({
     required String title,
     required String subtitle,
@@ -1151,3 +1345,4 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
     );
   }
 }
+

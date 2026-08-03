@@ -149,7 +149,9 @@ class DBHelper {
       'postMeditation': 'ALTER TABLE logs ADD COLUMN postMeditation INTEGER NOT NULL DEFAULT 0',
       'postMeditationDuration': 'ALTER TABLE logs ADD COLUMN postMeditationDuration INTEGER NOT NULL DEFAULT 0',
       'edgingCountBeforeOrgasm': 'ALTER TABLE logs ADD COLUMN edgingCountBeforeOrgasm INTEGER NOT NULL DEFAULT 0',
+      'arousalCountBeforeOrgasm': 'ALTER TABLE logs ADD COLUMN arousalCountBeforeOrgasm INTEGER NOT NULL DEFAULT 0',
       'nearOrgasmCount': 'ALTER TABLE logs ADD COLUMN nearOrgasmCount INTEGER NOT NULL DEFAULT 0',
+
       'didOrgasmOccur': 'ALTER TABLE logs ADD COLUMN didOrgasmOccur INTEGER NOT NULL DEFAULT 0',
       'endingReason': 'ALTER TABLE logs ADD COLUMN endingReason TEXT DEFAULT \'\'',
       'waterBeforeMl': 'ALTER TABLE logs ADD COLUMN waterBeforeMl INTEGER NOT NULL DEFAULT 0',
@@ -285,6 +287,7 @@ class DBHelper {
     final streakStr = await getSetting('lastStreakResetTime');
     final edgeCount = await getSettingInt('currentEdgeCount') ?? 0;
     final arousalCount = await getSettingInt('currentArousalCount') ?? 0;
+    final widgetInterval = await getSettingInt('widgetUpdateIntervalMinutes') ?? 5;
 
     return AppSettings(
       themeMode: themeStr == 'amoled' ? AppThemeMode.amoled : AppThemeMode.dark,
@@ -296,6 +299,8 @@ class DBHelper {
       lastStreakResetTime: streakStr != null && streakStr.isNotEmpty ? DateTime.tryParse(streakStr) : null,
       currentEdgeCount: edgeCount,
       currentArousalCount: arousalCount,
+      widgetUpdateIntervalMinutes: widgetInterval,
     );
   }
 }
+

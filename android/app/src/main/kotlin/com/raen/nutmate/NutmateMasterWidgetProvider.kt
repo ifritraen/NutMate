@@ -17,7 +17,7 @@ class NutmateMasterWidgetProvider : HomeWidgetProvider() {
         for (appWidgetId in appWidgetIds) {
             val views = RemoteViews(context.packageName, R.layout.nutmate_widget_master)
 
-            val streak = widgetData.getString("streak_text", "0d 0h 0m") ?: "0d 0h 0m"
+            val streak = WidgetHelper.getFormattedStreak(widgetData)
             val edgeCount = widgetData.getInt("edge_count", 0)
 
             views.setTextViewText(R.id.streak_text, streak)
@@ -27,3 +27,4 @@ class NutmateMasterWidgetProvider : HomeWidgetProvider() {
         }
     }
 }
+

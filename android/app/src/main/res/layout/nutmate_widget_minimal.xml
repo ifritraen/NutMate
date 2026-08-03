@@ -4,21 +4,25 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center"
-    android:padding="8dp"
+    android:padding="4dp"
     android:background="@drawable/widget_glass_bg">
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="💦"
-        android:textSize="18sp" />
+        android:textSize="14sp" />
 
     <TextView
         android:id="@+id/streak_text"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="0d"
+        android:text="0d 0h 0m"
         android:textColor="#00F5D4"
-        android:textSize="16sp"
-        android:textStyle="bold" />
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:maxLines="2"
+        android:ellipsize="none" />
 </LinearLayout>
+

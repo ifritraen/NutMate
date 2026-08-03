@@ -278,7 +278,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
 
-              Text('Habit Management', style: theme.textTheme.titleLarge),
+              Text('Habit Management & Widget', style: theme.textTheme.titleLarge),
               const SizedBox(height: 12),
               GlassCard(
                 child: Column(
@@ -291,6 +291,29 @@ class SettingsScreen extends ConsumerWidget {
                         HapticService.selectionClick();
                         ref.read(settingsProvider.notifier).setStreakFrozen(val);
                       },
+                    ),
+                    const Divider(color: Colors.white10),
+                    ListTile(
+                      title: const Text('Widget Update Frequency'),
+                      subtitle: Text('Updates widget streak every ${settings.widgetUpdateIntervalMinutes} minutes'),
+                      trailing: DropdownButton<int>(
+                        value: settings.widgetUpdateIntervalMinutes,
+                        dropdownColor: theme.colorScheme.surface,
+                        underline: const SizedBox(),
+                        items: const [
+                          DropdownMenuItem(value: 5, child: Text('5 Min (Default)')),
+                          DropdownMenuItem(value: 10, child: Text('10 Min')),
+                          DropdownMenuItem(value: 15, child: Text('15 Min')),
+                          DropdownMenuItem(value: 30, child: Text('30 Min')),
+                          DropdownMenuItem(value: 60, child: Text('60 Min')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            HapticService.selectionClick();
+                            ref.read(settingsProvider.notifier).setWidgetUpdateIntervalMinutes(val);
+                          }
+                        },
+                      ),
                     ),
                     const Divider(color: Colors.white10),
                     SwitchListTile(
@@ -306,6 +329,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 24),
+
 
               Text('Appearance & Accent Palette', style: theme.textTheme.titleLarge),
               const SizedBox(height: 12),

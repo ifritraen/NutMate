@@ -17,11 +17,11 @@ class NutmateMinimalWidgetProvider : HomeWidgetProvider() {
         for (appWidgetId in appWidgetIds) {
             val views = RemoteViews(context.packageName, R.layout.nutmate_widget_minimal)
 
-            val streak = widgetData.getString("streak_text", "0d 0h 0m") ?: "0d 0h 0m"
-            val dayOnly = streak.split(" ").firstOrNull() ?: "0d"
-            views.setTextViewText(R.id.streak_text, dayOnly)
+            val streak = WidgetHelper.getFormattedStreak(widgetData)
+            views.setTextViewText(R.id.streak_text, streak)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
     }
 }
+

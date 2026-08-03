@@ -58,8 +58,9 @@ class LogEntry {
   final bool postMeditation;
   final int postMeditationDuration; // mins (0 = none)
 
-  // Edging Specific
+  // Edging Specific & Session Counts
   final int edgingCountBeforeOrgasm;
+  final int arousalCountBeforeOrgasm;
   final int nearOrgasmCount;
   final bool didOrgasmOccur;
   final String endingReason;
@@ -110,6 +111,7 @@ class LogEntry {
     this.postMeditation = false,
     this.postMeditationDuration = 0,
     this.edgingCountBeforeOrgasm = 0,
+    this.arousalCountBeforeOrgasm = 0,
     this.nearOrgasmCount = 0,
     this.didOrgasmOccur = false,
     this.endingReason = '',
@@ -187,6 +189,7 @@ class LogEntry {
       'postMeditation': postMeditation ? 1 : 0,
       'postMeditationDuration': postMeditationDuration,
       'edgingCountBeforeOrgasm': edgingCountBeforeOrgasm,
+      'arousalCountBeforeOrgasm': arousalCountBeforeOrgasm,
       'nearOrgasmCount': nearOrgasmCount,
       'didOrgasmOccur': didOrgasmOccur ? 1 : 0,
       'endingReason': endingReason,
@@ -279,11 +282,13 @@ class LogEntry {
       postMeditation: (map['postMeditation'] ?? 0) == 1,
       postMeditationDuration: map['postMeditationDuration'] ?? 0,
       edgingCountBeforeOrgasm: map['edgingCountBeforeOrgasm'] ?? 0,
+      arousalCountBeforeOrgasm: map['arousalCountBeforeOrgasm'] ?? 0,
       nearOrgasmCount: map['nearOrgasmCount'] ?? 0,
       didOrgasmOccur: (map['didOrgasmOccur'] ?? 0) == 1,
       endingReason: map['endingReason'] ?? '',
     );
   }
+
 
   Map<String, dynamic> toJson() => toMap();
   factory LogEntry.fromJson(Map<String, dynamic> json) => LogEntry.fromMap(json);
