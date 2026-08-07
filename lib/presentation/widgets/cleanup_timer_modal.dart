@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../core/services/timer_notification_service.dart';
 import 'glass_card.dart';
 
 class CleanupTimerModal extends StatefulWidget {
@@ -11,23 +12,45 @@ class CleanupTimerModal extends StatefulWidget {
   State<CleanupTimerModal> createState() => _CleanupTimerModalState();
 }
 
-class _CleanupTimerModalState extends State<CleanupTimerModal> {
+class _CleanupTimerModalState extends State<CleanupTimerModal> with WidgetsBindingObserver {
+  late DateTime _timerStartTime;
   int _seconds = 0;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _timerStartTime = DateTime.now();
+    TimerNotificationService.instance.enableWakelock();
+    _startTimer();
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        _seconds++;
-      });
+      if (mounted) {
+        setState(() {
+          _seconds = DateTime.now().difference(_timerStartTime).inSeconds;
+        });
+      }
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      setState(() {
+        _seconds = DateTime.now().difference(_timerStartTime).inSeconds;
+      });
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
+    TimerNotificationService.instance.disableWakelock();
     super.dispose();
   }
 
@@ -65,7 +88,7 @@ class _CleanupTimerModalState extends State<CleanupTimerModal> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Timer started automatically after orgasm',
+            'Timer running in background with wake-lock active',
             style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white60),
           ),
           const SizedBox(height: 24),
@@ -91,6 +114,12 @@ class _CleanupTimerModalState extends State<CleanupTimerModal> {
             ),
             onPressed: () {
               _timer?.cancel();
+              final mins = (_seconds / 60.0).toStringAsFixed(1);
+              TimerNotificationService.instance.showNotification(
+                id: 101,
+                title: 'Cleanup Finished ⏱️',
+                body: 'Recorded $mins mins of cleanup time in NutMate.',
+              );
               widget.onFinished(_seconds);
               Navigator.pop(context);
             },

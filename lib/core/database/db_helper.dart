@@ -76,6 +76,8 @@ class DBHelper {
         postMeditation INTEGER NOT NULL DEFAULT 0,
         postMeditationDuration INTEGER NOT NULL DEFAULT 0,
         edgingCountBeforeOrgasm INTEGER NOT NULL DEFAULT 0,
+        arousalCountBeforeOrgasm INTEGER NOT NULL DEFAULT 0,
+        urgeCountBeforeOrgasm INTEGER NOT NULL DEFAULT 0,
         nearOrgasmCount INTEGER NOT NULL DEFAULT 0,
         didOrgasmOccur INTEGER NOT NULL DEFAULT 0,
         endingReason TEXT DEFAULT '',
@@ -150,6 +152,7 @@ class DBHelper {
       'postMeditationDuration': 'ALTER TABLE logs ADD COLUMN postMeditationDuration INTEGER NOT NULL DEFAULT 0',
       'edgingCountBeforeOrgasm': 'ALTER TABLE logs ADD COLUMN edgingCountBeforeOrgasm INTEGER NOT NULL DEFAULT 0',
       'arousalCountBeforeOrgasm': 'ALTER TABLE logs ADD COLUMN arousalCountBeforeOrgasm INTEGER NOT NULL DEFAULT 0',
+      'urgeCountBeforeOrgasm': 'ALTER TABLE logs ADD COLUMN urgeCountBeforeOrgasm INTEGER NOT NULL DEFAULT 0',
       'nearOrgasmCount': 'ALTER TABLE logs ADD COLUMN nearOrgasmCount INTEGER NOT NULL DEFAULT 0',
 
       'didOrgasmOccur': 'ALTER TABLE logs ADD COLUMN didOrgasmOccur INTEGER NOT NULL DEFAULT 0',

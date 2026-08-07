@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/services/haptic_service.dart';
+import '../../core/services/timer_notification_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../domain/models/log_entry.dart';
 import '../providers/app_providers.dart';
@@ -29,8 +30,9 @@ class AddLogScreen extends ConsumerStatefulWidget {
   ConsumerState<AddLogScreen> createState() => _AddLogScreenState();
 }
 
-class _AddLogScreenState extends ConsumerState<AddLogScreen> {
+class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBindingObserver {
   SessionType _sessionType = SessionType.masturbation;
+  DateTime? _timerStartTime;
 
   // Section Collapsible Toggles
   bool _isPreNutExpanded = true;
@@ -106,7 +108,66 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    TimerNotificationService.instance.enableWakelock();
     _resetForm();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _isTimerRunning && _timerStartTime != null && mounted) {
+      setState(() {
+        _timerSeconds = DateTime.now().difference(_timerStartTime!).inSeconds;
+        _durationMinutes = (_timerSeconds / 60.0).clamp(1.0, 240.0);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _stopwatchTimer?.cancel();
+    TimerNotificationService.instance.disableWakelock();
+    _beforeNotesController.dispose();
+    _tagController.dispose();
+    super.dispose();
+  }
+
+  void _toggleLiveTimer() {
+    HapticService.selectionClick();
+    if (_isTimerRunning) {
+      _stopwatchTimer?.cancel();
+      setState(() {
+        _isTimerRunning = false;
+        _durationMinutes = (_timerSeconds / 60.0).clamp(1.0, 240.0);
+      });
+      final mins = (_timerSeconds / 60.0).toStringAsFixed(1);
+      TimerNotificationService.instance.showNotification(
+        id: 102,
+        title: 'Live Session Timer Paused ⏱️',
+        body: 'Duration so far: $mins mins.',
+      );
+    } else {
+      _timerStartTime = DateTime.now().subtract(Duration(seconds: _timerSeconds));
+      setState(() {
+        _isTimerRunning = true;
+        _startTime = _timerStartTime!;
+      });
+      TimerNotificationService.instance.showNotification(
+        id: 102,
+        title: 'Live Session Timer Active ⏱️',
+        body: 'Session timer is running in background with wake-lock active.',
+      );
+      _stopwatchTimer?.cancel();
+      _stopwatchTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (mounted && _isTimerRunning && _timerStartTime != null) {
+          setState(() {
+            _timerSeconds = DateTime.now().difference(_timerStartTime!).inSeconds;
+            _durationMinutes = (_timerSeconds / 60.0).clamp(1.0, 240.0);
+          });
+        }
+      });
+    }
   }
 
   void _resetForm() {
@@ -213,37 +274,6 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
       _manualEdgeCount = null;
       _manualArousalCount = null;
       _manualUrgeCount = null;
-    }
-  }
-
-
-  @override
-  void dispose() {
-    _stopwatchTimer?.cancel();
-    _beforeNotesController.dispose();
-    _tagController.dispose();
-    super.dispose();
-  }
-
-  void _toggleLiveTimer() {
-    HapticService.selectionClick();
-    if (_isTimerRunning) {
-      _stopwatchTimer?.cancel();
-      setState(() {
-        _isTimerRunning = false;
-        _durationMinutes = (_timerSeconds / 60.0).clamp(1.0, 240.0);
-      });
-    } else {
-      setState(() {
-        _isTimerRunning = true;
-        _startTime = DateTime.now();
-      });
-      _stopwatchTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        setState(() {
-          _timerSeconds++;
-          _durationMinutes = (_timerSeconds / 60.0).clamp(1.0, 240.0);
-        });
-      });
     }
   }
 
@@ -942,7 +972,7 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
                       children: [
                         ChipSelector(
                           title: '✋ Method Used',
-                          options: const ['Hand', 'Toys', 'Edging Device', 'Partner', 'Fleshlight', 'Other'],
+                          options: const ['Hand', 'Toys', 'Edging Device', 'Partner', 'Fleshlight', 'Pillow'],
                           selectedSingle: _method,
                           onSingleSelected: (val) => setState(() => _method = val),
                         ),
@@ -952,7 +982,8 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
                           options: const [
                             '🎬 Adult Video / Porn',
                             '🖼️ Erotic Images / Photos',
-                            '🎨 Hentai / Manga / 2D',
+                            '🎬 Hentai / Animated Video',
+                            '🎨 Hentai / Manga / Comic',
                             '📚 Erotic Stories / Erotica',
                             '🎧 Audio / Erotic ASMR',
                             '💭 Pure Imagination / Fantasy',
@@ -964,7 +995,7 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
                         const SizedBox(height: 16),
                         ChipSelector(
                           title: 'Body Position',
-                          options: const ['Lying', 'Sitting', 'Standing'],
+                          options: const ['Lying', 'Sitting', 'Standing', 'Humping'],
                           selectedSingle: _position,
                           onSingleSelected: (val) => setState(() => _position = val),
                         ),
