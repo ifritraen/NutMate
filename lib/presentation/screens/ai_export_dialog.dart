@@ -9,7 +9,6 @@ import '../../core/services/ai_export_service.dart';
 import '../../core/services/haptic_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../providers/app_providers.dart';
-import '../widgets/glass_card.dart';
 
 enum AiExportRange { week, month, threeMonths, sixMonths, year, all }
 

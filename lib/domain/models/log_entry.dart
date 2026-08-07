@@ -61,6 +61,7 @@ class LogEntry {
   // Edging Specific & Session Counts
   final int edgingCountBeforeOrgasm;
   final int arousalCountBeforeOrgasm;
+  final int urgeCountBeforeOrgasm;
   final int nearOrgasmCount;
   final bool didOrgasmOccur;
   final String endingReason;
@@ -112,6 +113,7 @@ class LogEntry {
     this.postMeditationDuration = 0,
     this.edgingCountBeforeOrgasm = 0,
     this.arousalCountBeforeOrgasm = 0,
+    this.urgeCountBeforeOrgasm = 0,
     this.nearOrgasmCount = 0,
     this.didOrgasmOccur = false,
     this.endingReason = '',
@@ -190,6 +192,7 @@ class LogEntry {
       'postMeditationDuration': postMeditationDuration,
       'edgingCountBeforeOrgasm': edgingCountBeforeOrgasm,
       'arousalCountBeforeOrgasm': arousalCountBeforeOrgasm,
+      'urgeCountBeforeOrgasm': urgeCountBeforeOrgasm,
       'nearOrgasmCount': nearOrgasmCount,
       'didOrgasmOccur': didOrgasmOccur ? 1 : 0,
       'endingReason': endingReason,
@@ -283,6 +286,7 @@ class LogEntry {
       postMeditationDuration: map['postMeditationDuration'] ?? 0,
       edgingCountBeforeOrgasm: map['edgingCountBeforeOrgasm'] ?? 0,
       arousalCountBeforeOrgasm: map['arousalCountBeforeOrgasm'] ?? 0,
+      urgeCountBeforeOrgasm: map['urgeCountBeforeOrgasm'] ?? 0,
       nearOrgasmCount: map['nearOrgasmCount'] ?? 0,
       didOrgasmOccur: (map['didOrgasmOccur'] ?? 0) == 1,
       endingReason: map['endingReason'] ?? '',

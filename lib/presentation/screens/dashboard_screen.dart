@@ -96,46 +96,55 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
                 Row(
                   children: [
-                    Expanded(
-                      child: GlassCard(
-                        color: Colors.amber.withOpacity(0.08),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.bolt, color: Colors.amber, size: 20),
-                                const SizedBox(width: 6),
-                                Expanded(child: Text('Edge Count', style: theme.textTheme.titleSmall?.copyWith(color: Colors.white70), overflow: TextOverflow.ellipsis)),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text('${settings.currentEdgeCount}', style: theme.textTheme.headlineMedium?.copyWith(color: Colors.amberAccent, fontWeight: FontWeight.bold)),
-                            Text(settings.currentEdgeCount == 1 ? 'Session' : 'Sessions', style: const TextStyle(color: Colors.white38, fontSize: 11)),
-                          ],
-                        ),
-                      ),
+                    _buildInteractiveCounterCard(
+                      title: 'Edge',
+                      count: settings.currentEdgeCount,
+                      icon: Icons.bolt,
+                      accentColor: Colors.amberAccent,
+                      backgroundColor: Colors.amber.withOpacity(0.08),
+                      onIncrement: () {
+                        HapticService.selectionClick();
+                        ref.read(settingsProvider.notifier).updateEdgeCount(settings.currentEdgeCount + 1);
+                      },
+                      onDecrement: () {
+                        HapticService.selectionClick();
+                        ref.read(settingsProvider.notifier).updateEdgeCount((settings.currentEdgeCount - 1).clamp(0, 999));
+                      },
+                      theme: theme,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: GlassCard(
-                        color: Colors.deepOrange.withOpacity(0.08),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.local_fire_department, color: Colors.deepOrangeAccent, size: 20),
-                                const SizedBox(width: 6),
-                                Expanded(child: Text('Arousal Count', style: theme.textTheme.titleSmall?.copyWith(color: Colors.white70), overflow: TextOverflow.ellipsis)),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text('${settings.currentArousalCount}', style: theme.textTheme.headlineMedium?.copyWith(color: Colors.orangeAccent, fontWeight: FontWeight.bold)),
-                            Text(settings.currentArousalCount == 1 ? 'Session' : 'Sessions', style: const TextStyle(color: Colors.white38, fontSize: 11)),
-                          ],
-                        ),
-                      ),
+                    const SizedBox(width: 8),
+                    _buildInteractiveCounterCard(
+                      title: 'Arousal',
+                      count: settings.currentArousalCount,
+                      icon: Icons.local_fire_department,
+                      accentColor: Colors.deepOrangeAccent,
+                      backgroundColor: Colors.deepOrange.withOpacity(0.08),
+                      onIncrement: () {
+                        HapticService.selectionClick();
+                        ref.read(settingsProvider.notifier).updateArousalCount(settings.currentArousalCount + 1);
+                      },
+                      onDecrement: () {
+                        HapticService.selectionClick();
+                        ref.read(settingsProvider.notifier).updateArousalCount((settings.currentArousalCount - 1).clamp(0, 999));
+                      },
+                      theme: theme,
+                    ),
+                    const SizedBox(width: 8),
+                    _buildInteractiveCounterCard(
+                      title: 'Urge',
+                      count: settings.currentUrgeCount,
+                      icon: Icons.whatshot,
+                      accentColor: Colors.redAccent,
+                      backgroundColor: Colors.red.withOpacity(0.08),
+                      onIncrement: () {
+                        HapticService.selectionClick();
+                        ref.read(settingsProvider.notifier).updateUrgeCount(settings.currentUrgeCount + 1);
+                      },
+                      onDecrement: () {
+                        HapticService.selectionClick();
+                        ref.read(settingsProvider.notifier).updateUrgeCount((settings.currentUrgeCount - 1).clamp(0, 999));
+                      },
+                      theme: theme,
                     ),
                   ],
                 ),
@@ -273,6 +282,99 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           const SizedBox(height: 8),
           Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInteractiveCounterCard({
+    required String title,
+    required int count,
+    required IconData icon,
+    required Color accentColor,
+    required Color backgroundColor,
+    required VoidCallback onIncrement,
+    required VoidCallback onDecrement,
+    required ThemeData theme,
+  }) {
+    return Expanded(
+      child: GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        color: backgroundColor,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: accentColor, size: 18),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: theme.textTheme.labelSmall?.copyWith(color: Colors.white70, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            InkWell(
+              onTap: onIncrement,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2.0),
+                child: Row(
+                  children: [
+                    Text(
+                      '$count',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: accentColor,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      count == 1 ? 'time' : 'times',
+                      style: const TextStyle(color: Colors.white38, fontSize: 10),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                InkWell(
+                  onTap: count > 0 ? onDecrement : null,
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(count > 0 ? 0.1 : 0.03),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(Icons.remove, size: 16, color: count > 0 ? Colors.white70 : Colors.white24),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: onIncrement,
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: accentColor.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(Icons.add, size: 16, color: accentColor),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

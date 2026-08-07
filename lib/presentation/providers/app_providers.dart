@@ -144,6 +144,16 @@ class SettingsNotifier extends Notifier<AppSettings> {
     await DBHelper.instance.saveSetting('currentEdgeCount', count.toString());
     state = state.copyWith(currentEdgeCount: count);
   }
+
+  Future<void> updateArousalCount(int count) async {
+    await DBHelper.instance.saveSetting('currentArousalCount', count.toString());
+    state = state.copyWith(currentArousalCount: count);
+  }
+
+  Future<void> updateUrgeCount(int count) async {
+    await DBHelper.instance.saveSetting('currentUrgeCount', count.toString());
+    state = state.copyWith(currentUrgeCount: count);
+  }
 }
 
 final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(SettingsNotifier.new);
@@ -157,6 +167,7 @@ final statsProvider = Provider<StatsSummary>((ref) {
     logs,
     lastOrgasmTime: settings.lastStreakResetTime,
     activeEdgeCount: settings.currentEdgeCount,
+    activeArousalCount: settings.currentArousalCount,
   );
 
   HomeWidgetService.updateHomeWidget(

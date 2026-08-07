@@ -11,6 +11,7 @@ class AppSettings {
   final DateTime? lastStreakResetTime;
   final int currentEdgeCount;
   final int currentArousalCount;
+  final int currentUrgeCount;
   final bool stealthMode;
   final bool streakFrozen;
   final bool anonymizeExports;
@@ -28,6 +29,7 @@ class AppSettings {
     this.lastStreakResetTime,
     this.currentEdgeCount = 0,
     this.currentArousalCount = 0,
+    this.currentUrgeCount = 0,
     this.stealthMode = false,
     this.streakFrozen = false,
     this.anonymizeExports = false,
@@ -46,6 +48,7 @@ class AppSettings {
     DateTime? lastStreakResetTime,
     int? currentEdgeCount,
     int? currentArousalCount,
+    int? currentUrgeCount,
     bool? stealthMode,
     bool? streakFrozen,
     bool? anonymizeExports,
@@ -63,6 +66,7 @@ class AppSettings {
       lastStreakResetTime: lastStreakResetTime ?? this.lastStreakResetTime,
       currentEdgeCount: currentEdgeCount ?? this.currentEdgeCount,
       currentArousalCount: currentArousalCount ?? this.currentArousalCount,
+      currentUrgeCount: currentUrgeCount ?? this.currentUrgeCount,
       stealthMode: stealthMode ?? this.stealthMode,
       streakFrozen: streakFrozen ?? this.streakFrozen,
       anonymizeExports: anonymizeExports ?? this.anonymizeExports,

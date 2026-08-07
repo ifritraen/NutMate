@@ -95,9 +95,10 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
   double _nearOrgasmCount = 1.0;
   String _endingReason = '';
 
-  // Edging & Arousal Manual Overrides
+  // Edging, Arousal & Urge Manual Overrides
   int? _manualEdgeCount;
   int? _manualArousalCount;
+  int? _manualUrgeCount;
 
   // Session DateTime for Backdating/Editing
   DateTime _sessionDateTime = DateTime.now();
@@ -163,6 +164,7 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
       _endingReason = log.endingReason;
       _manualEdgeCount = log.edgingCountBeforeOrgasm;
       _manualArousalCount = log.arousalCountBeforeOrgasm;
+      _manualUrgeCount = log.urgeCountBeforeOrgasm;
     } else {
       _sessionType = SessionType.masturbation;
       _preWater = 'None';
@@ -210,6 +212,7 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
       _endingReason = '';
       _manualEdgeCount = null;
       _manualArousalCount = null;
+      _manualUrgeCount = null;
     }
   }
 
@@ -326,6 +329,7 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
         postMeditation: _postMeditation,
         edgingCountBeforeOrgasm: _sessionType == SessionType.masturbation ? (_manualEdgeCount ?? settings.currentEdgeCount) : 0,
         arousalCountBeforeOrgasm: _sessionType == SessionType.masturbation ? (_manualArousalCount ?? settings.currentArousalCount) : 0,
+        urgeCountBeforeOrgasm: _sessionType == SessionType.masturbation ? (_manualUrgeCount ?? settings.currentUrgeCount) : 0,
         nearOrgasmCount: _nearOrgasmCount.round(),
         endingReason: _endingReason,
       );
@@ -779,6 +783,28 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> {
                             onReset: () {
                               HapticService.selectionClick();
                               setState(() => _manualArousalCount = null);
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          _buildCounterTile(
+                            title: '💥 Urge Count Before Orgasm',
+                            subtitle: 'Manual override or default automatic tracker value',
+                            count: _manualUrgeCount ?? settings.currentUrgeCount,
+                            isManual: _manualUrgeCount != null,
+                            accentColor: Colors.redAccent,
+                            onDecrement: () {
+                              HapticService.selectionClick();
+                              final current = _manualUrgeCount ?? settings.currentUrgeCount;
+                              setState(() => _manualUrgeCount = (current - 1).clamp(0, 999));
+                            },
+                            onIncrement: () {
+                              HapticService.selectionClick();
+                              final current = _manualUrgeCount ?? settings.currentUrgeCount;
+                              setState(() => _manualUrgeCount = current + 1);
+                            },
+                            onReset: () {
+                              HapticService.selectionClick();
+                              setState(() => _manualUrgeCount = null);
                             },
                           ),
                         ],

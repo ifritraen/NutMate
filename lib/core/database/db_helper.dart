@@ -220,6 +220,7 @@ class DBHelper {
       await saveSetting('lastStreakResetTime', log.createdAt.toIso8601String());
       await saveSetting('currentEdgeCount', '0');
       await saveSetting('currentArousalCount', '0');
+      await saveSetting('currentUrgeCount', '0');
     } else if (log.type == SessionType.edging) {
       final currentEdge = await getSettingInt('currentEdgeCount') ?? 0;
       await saveSetting('currentEdgeCount', (currentEdge + 1).toString());
@@ -255,6 +256,7 @@ class DBHelper {
     await saveSetting('lastStreakResetTime', '');
     await saveSetting('currentEdgeCount', '0');
     await saveSetting('currentArousalCount', '0');
+    await saveSetting('currentUrgeCount', '0');
   }
 
   // --- SETTINGS CRUD ---
@@ -287,6 +289,7 @@ class DBHelper {
     final streakStr = await getSetting('lastStreakResetTime');
     final edgeCount = await getSettingInt('currentEdgeCount') ?? 0;
     final arousalCount = await getSettingInt('currentArousalCount') ?? 0;
+    final urgeCount = await getSettingInt('currentUrgeCount') ?? 0;
     final widgetInterval = await getSettingInt('widgetUpdateIntervalMinutes') ?? 5;
 
     return AppSettings(
@@ -299,6 +302,7 @@ class DBHelper {
       lastStreakResetTime: streakStr != null && streakStr.isNotEmpty ? DateTime.tryParse(streakStr) : null,
       currentEdgeCount: edgeCount,
       currentArousalCount: arousalCount,
+      currentUrgeCount: urgeCount,
       widgetUpdateIntervalMinutes: widgetInterval,
     );
   }
