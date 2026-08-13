@@ -18,12 +18,16 @@ class AddLogScreen extends ConsumerStatefulWidget {
   final LogEntry? existingLog;
   final bool isNavVisible;
   final VoidCallback? onSaved;
+  final double? initialPreContentDuration;
+  final List<String>? initialPreContentTypes;
 
   const AddLogScreen({
     super.key,
     this.existingLog,
     this.isNavVisible = true,
     this.onSaved,
+    this.initialPreContentDuration,
+    this.initialPreContentTypes,
   });
 
   @override
@@ -52,6 +56,8 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
   String _preMeal = 'None';
   bool _preCoffee = false;
   bool _preAlcohol = false;
+  double _preContentDuration = 0.0;
+  List<String> _preContentTypes = [];
 
   // Before
   double _urge = 5.0;
@@ -190,6 +196,8 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
       _preMeal = log.preMeal.isEmpty ? 'None' : log.preMeal;
       _preCoffee = log.preCoffee;
       _preAlcohol = log.preAlcohol;
+      _preContentDuration = log.preContentDuration.toDouble();
+      _preContentTypes = List<String>.from(log.preContentTypes);
 
       _urge = log.urge.toDouble();
       _mood = log.mood.isEmpty ? 'Relaxed' : log.mood;
@@ -238,6 +246,8 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
       _preMeal = 'None';
       _preCoffee = false;
       _preAlcohol = false;
+      _preContentDuration = widget.initialPreContentDuration ?? 0.0;
+      _preContentTypes = widget.initialPreContentTypes != null ? List<String>.from(widget.initialPreContentTypes!) : [];
 
       _urge = 5.0;
       _mood = 'Relaxed';
@@ -330,6 +340,8 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
         preMeal: _preMeal.trim().isEmpty ? 'None' : _preMeal,
         preCoffee: _preCoffee,
         preAlcohol: _preAlcohol,
+        preContentDuration: _preContentDuration.round(),
+        preContentTypes: _preContentTypes,
         urge: _urge.round(),
         mood: _mood.trim().isEmpty ? 'Relaxed' : _mood,
         trigger: _trigger.trim().isEmpty ? '🧠 Stress & Anxiety' : _trigger,
@@ -724,6 +736,39 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
                               ),
                             ],
                           ),
+                          const SizedBox(height: 16),
+                          const Divider(color: Colors.white12),
+                          const SizedBox(height: 12),
+                          Text('📱 Pre-Session Content Consumed: ${_preContentDuration.round()} mins', style: theme.textTheme.titleMedium),
+                          Slider(
+                            value: _preContentDuration,
+                            min: 0,
+                            max: 180,
+                            divisions: 36,
+                            onChanged: (val) {
+                              HapticService.selectionClick();
+                              setState(() => _preContentDuration = val);
+                            },
+                          ),
+                          if (_preContentDuration > 0) ...[
+                            const SizedBox(height: 8),
+                            ChipSelector(
+                              title: 'Content Types Consumed Pre-Session',
+                              isMultiSelect: true,
+                              options: const [
+                                '🎬 Adult Video / Porn',
+                                '🎬 Hentai / Animated Video',
+                                '🎨 Hentai / Manga / Comic',
+                                '🖼️ Erotic Images / Photos',
+                                '📱 Social Media / Feeds / Reels',
+                                '📚 Erotic Stories / Erotica',
+                                '🎧 Audio / Erotic ASMR',
+                                '💭 Pure Imagination / Fantasy',
+                              ],
+                              selectedMulti: _preContentTypes,
+                              onMultiSelected: (list) => setState(() => _preContentTypes = list),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -850,12 +895,18 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
                           title: 'Trigger',
                           options: const [
                             '🧠 Stress & Anxiety',
-                            '🎬 Adult Content / NSFW',
-                            '📱 Social Media Scrolling',
                             '🥱 Boredom / Free Time',
-                            '🛌 Bedtime Routine',
-                            '🔞 Erotic Fantasy',
-                            '⚡ Physical Touch',
+                            '🎬 Adult Video / Porn',
+                            '🎬 Hentai / Animated Video',
+                            '🎨 Hentai / Manga / Comic',
+                            '🖼️ Erotic Images / Photos',
+                            '📱 Social Media / Reels',
+                            '🎧 Audio / Erotic ASMR',
+                            '📚 Erotic Stories / Erotica',
+                            '💭 Erotic Fantasy',
+                            '⚡ Physical Touch / Arousal',
+                            '🛌 Bedtime / Waking Up',
+                            '💔 Loneliness / Emotional',
                           ],
                           selectedSingle: _trigger,
                           onSingleSelected: (val) => setState(() => _trigger = val),

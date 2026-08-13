@@ -11,6 +11,7 @@ import '../../core/theme/app_theme.dart';
 import '../providers/app_providers.dart';
 
 enum AiExportRange { week, month, threeMonths, sixMonths, year, all }
+enum AiExportMode { fullHistory, summary }
 
 class AiExportDialog extends ConsumerStatefulWidget {
   const AiExportDialog({super.key});
@@ -21,6 +22,7 @@ class AiExportDialog extends ConsumerStatefulWidget {
 
 class _AiExportDialogState extends ConsumerState<AiExportDialog> {
   AiExportRange _range = AiExportRange.month;
+  AiExportMode _mode = AiExportMode.fullHistory;
 
   DateTime get _startDate {
     final now = DateTime.now();
@@ -40,18 +42,43 @@ class _AiExportDialogState extends ConsumerState<AiExportDialog> {
     }
   }
 
+  String _generateContent(String format) {
+    final logs = ref.read(logsProvider);
+    final watchLogs = ref.read(watchLogsProvider);
+    if (format == 'csv') {
+      return AiExportService.generateCsv(logs, watchLogs);
+    } else if (format == 'html') {
+      return AiExportService.generateHtml(logs, watchLogs);
+    } else {
+      if (_mode == AiExportMode.fullHistory) {
+        return AiExportService.generateFullHistoryReport(
+          logs: logs,
+          watchLogs: watchLogs,
+          startDate: _startDate,
+          endDate: DateTime.now(),
+        );
+      } else {
+        return AiExportService.generateReport(
+          logs: logs,
+          watchLogs: watchLogs,
+          startDate: _startDate,
+          endDate: DateTime.now(),
+        );
+      }
+    }
+  }
+
   Future<void> _copyToClipboard() async {
     HapticService.selectionClick();
-    final logs = ref.read(logsProvider);
-    final report = AiExportService.generateReport(
-      logs: logs,
-      startDate: _startDate,
-      endDate: DateTime.now(),
-    );
+    final report = _generateContent('md');
     await Clipboard.setData(ClipboardData(text: report));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('AI Report copied to clipboard!')),
+        SnackBar(
+          content: Text(_mode == AiExportMode.fullHistory
+              ? 'Comprehensive Full History Report copied to clipboard!'
+              : 'Summary Analytics Report copied to clipboard!'),
+        ),
       );
       Navigator.pop(context);
     }
@@ -59,29 +86,18 @@ class _AiExportDialogState extends ConsumerState<AiExportDialog> {
 
   Future<void> _exportFile(String extension) async {
     HapticService.mediumImpact();
-    final logs = ref.read(logsProvider);
-    late String content;
-    if (extension == 'csv') {
-      content = AiExportService.generateCsv(logs);
-    } else if (extension == 'html') {
-      content = AiExportService.generateHtml(logs);
-    } else {
-      content = AiExportService.generateReport(
-        logs: logs,
-        startDate: _startDate,
-        endDate: DateTime.now(),
-      );
-    }
+    final content = _generateContent(extension);
 
     final tempDir = await getTemporaryDirectory();
-    final fileName = 'nutmate_export_${DateTime.now().millisecondsSinceEpoch}.$extension';
+    final modePrefix = _mode == AiExportMode.fullHistory ? 'full_history' : 'summary';
+    final fileName = 'nutmate_${modePrefix}_export_${DateTime.now().millisecondsSinceEpoch}.$extension';
     final file = File('${tempDir.path}/$fileName');
     await file.writeAsString(content);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Export ready ($fileName). Choose folder/app to save...'),
+          content: Text('Export ready ($fileName). Choose app/location to save...'),
           duration: const Duration(seconds: 3),
         ),
       );
@@ -89,7 +105,7 @@ class _AiExportDialogState extends ConsumerState<AiExportDialog> {
 
     await Share.shareXFiles(
       [XFile(file.path)],
-      text: 'Nutmate Habit Report',
+      text: 'NutMate Habit & Activity Report',
       subject: fileName,
     );
 
@@ -109,7 +125,7 @@ class _AiExportDialogState extends ConsumerState<AiExportDialog> {
         children: [
           Icon(Icons.psychology, color: AppTheme.secondaryCyan),
           const SizedBox(width: 10),
-          Text('Analyze & Export', style: theme.textTheme.titleLarge),
+          Text('AI Analysis & Export', style: theme.textTheme.titleLarge),
         ],
       ),
       content: SingleChildScrollView(
@@ -117,12 +133,56 @@ class _AiExportDialogState extends ConsumerState<AiExportDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Generates privacy-preserving Markdown, CSV, or HTML reports for LLMs and spreadsheets.', style: TextStyle(color: Colors.white70, fontSize: 13)),
+            const Text(
+              'Export comprehensive habit histories, execution methods, lifestyle factors, and notes tailored for AI prompts, spreadsheets, or offline archiving.',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
             const SizedBox(height: 16),
+
+            Text('Export Mode:', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ChoiceChip(
+                  avatar: const Icon(Icons.history_edu, size: 18),
+                  label: const Text('Full History (All Data)', style: TextStyle(fontWeight: FontWeight.bold)),
+                  selected: _mode == AiExportMode.fullHistory,
+                  onSelected: (val) {
+                    if (val) {
+                      HapticService.selectionClick();
+                      setState(() => _mode = AiExportMode.fullHistory);
+                    }
+                  },
+                ),
+                ChoiceChip(
+                  avatar: const Icon(Icons.analytics_outlined, size: 18),
+                  label: const Text('Summary Analytics'),
+                  selected: _mode == AiExportMode.summary,
+                  onSelected: (val) {
+                    if (val) {
+                      HapticService.selectionClick();
+                      setState(() => _mode = AiExportMode.summary);
+                    }
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _mode == AiExportMode.fullHistory
+                  ? 'Includes every detail: Dates, Methods, Stimulus, Positions, Counts, Pre/Post habits, & Notes.'
+                  : 'Includes aggregated averages, top triggers, key stats, and recent session highlights.',
+              style: TextStyle(color: AppTheme.secondaryCyan.withOpacity(0.85), fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+
             Text('Select Date Range:', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
+              runSpacing: 6,
               children: [
                 _buildRangeChip('Last Week', AiExportRange.week),
                 _buildRangeChip('Last Month', AiExportRange.month),
@@ -132,7 +192,10 @@ class _AiExportDialogState extends ConsumerState<AiExportDialog> {
                 _buildRangeChip('All Time', AiExportRange.all),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
+
+            Text('Export Format:', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -141,7 +204,7 @@ class _AiExportDialogState extends ConsumerState<AiExportDialog> {
                   style: ElevatedButton.styleFrom(backgroundColor: theme.colorScheme.primary),
                   onPressed: () => _exportFile('md'),
                   icon: const Icon(Icons.code, size: 16),
-                  label: const Text('.MD Report'),
+                  label: const Text('.MD for AI'),
                 ),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
@@ -164,7 +227,7 @@ class _AiExportDialogState extends ConsumerState<AiExportDialog> {
         TextButton.icon(
           onPressed: _copyToClipboard,
           icon: const Icon(Icons.copy, size: 18),
-          label: const Text('Copy Text'),
+          label: const Text('Copy to Clipboard'),
         ),
       ],
     );

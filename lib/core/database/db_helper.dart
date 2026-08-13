@@ -2,6 +2,7 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../domain/models/app_settings.dart';
 import '../../domain/models/log_entry.dart';
+import '../../domain/models/watch_entry.dart';
 
 class DBHelper {
   static final DBHelper instance = DBHelper._init();
@@ -24,7 +25,10 @@ class DBHelper {
       version: 8,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
-      onOpen: (db) async => await _ensureColumnsExist(db),
+      onOpen: (db) async {
+        await _ensureColumnsExist(db);
+        await _ensureWatchLogsTableExist(db);
+      },
     );
   }
 
@@ -45,6 +49,8 @@ class DBHelper {
         preMeal TEXT DEFAULT 'None',
         preCoffee INTEGER NOT NULL DEFAULT 0,
         preAlcohol INTEGER NOT NULL DEFAULT 0,
+        preContentDuration INTEGER NOT NULL DEFAULT 0,
+        preContentTypes TEXT DEFAULT '[]',
         urge INTEGER NOT NULL DEFAULT 5,
         mood TEXT DEFAULT '',
         trigger TEXT DEFAULT '',
@@ -96,6 +102,28 @@ class DBHelper {
     ''');
 
     await db.execute('''
+      CREATE TABLE watch_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        startTime TEXT NOT NULL,
+        endTime TEXT NOT NULL,
+        durationMinutes REAL NOT NULL DEFAULT 15.0,
+        contentTypes TEXT DEFAULT '[]',
+        platform TEXT DEFAULT 'Browser / Web',
+        urgeBefore INTEGER NOT NULL DEFAULT 5,
+        trigger TEXT DEFAULT '🥱 Boredom / Free Time',
+        location TEXT DEFAULT 'Bedroom',
+        intent TEXT DEFAULT '⚡ Accidental / Peek',
+        outcome TEXT DEFAULT '✅ Closed Cleanly / Resisted Urge',
+        feelingAfter TEXT DEFAULT 'Neutral',
+        notes TEXT DEFAULT '',
+        tags TEXT DEFAULT '[]',
+        isPlanned INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+
+    await db.execute('''
       CREATE TABLE settings (
         key TEXT PRIMARY KEY,
         value TEXT
@@ -105,6 +133,7 @@ class DBHelper {
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     await _ensureColumnsExist(db);
+    await _ensureWatchLogsTableExist(db);
   }
 
   Future<void> _ensureColumnsExist(Database db) async {
@@ -123,6 +152,8 @@ class DBHelper {
       'preMeal': 'ALTER TABLE logs ADD COLUMN preMeal TEXT DEFAULT \'None\'',
       'preCoffee': 'ALTER TABLE logs ADD COLUMN preCoffee INTEGER NOT NULL DEFAULT 0',
       'preAlcohol': 'ALTER TABLE logs ADD COLUMN preAlcohol INTEGER NOT NULL DEFAULT 0',
+      'preContentDuration': 'ALTER TABLE logs ADD COLUMN preContentDuration INTEGER NOT NULL DEFAULT 0',
+      'preContentTypes': 'ALTER TABLE logs ADD COLUMN preContentTypes TEXT DEFAULT \'[]\'',
       'urge': 'ALTER TABLE logs ADD COLUMN urge INTEGER NOT NULL DEFAULT 5',
       'mood': 'ALTER TABLE logs ADD COLUMN mood TEXT DEFAULT \'\'',
       'trigger': 'ALTER TABLE logs ADD COLUMN trigger TEXT DEFAULT \'\'',
@@ -260,6 +291,61 @@ class DBHelper {
     await saveSetting('currentEdgeCount', '0');
     await saveSetting('currentArousalCount', '0');
     await saveSetting('currentUrgeCount', '0');
+  }
+
+  Future<void> _ensureWatchLogsTableExist(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS watch_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        startTime TEXT NOT NULL,
+        endTime TEXT NOT NULL,
+        durationMinutes REAL NOT NULL DEFAULT 15.0,
+        contentTypes TEXT DEFAULT '[]',
+        platform TEXT DEFAULT 'Browser / Web',
+        urgeBefore INTEGER NOT NULL DEFAULT 5,
+        trigger TEXT DEFAULT '🥱 Boredom / Free Time',
+        location TEXT DEFAULT 'Bedroom',
+        intent TEXT DEFAULT '⚡ Accidental / Peek',
+        outcome TEXT DEFAULT '✅ Closed Cleanly / Resisted Urge',
+        feelingAfter TEXT DEFAULT 'Neutral',
+        notes TEXT DEFAULT '',
+        tags TEXT DEFAULT '[]',
+        isPlanned INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+  }
+
+  // --- WATCH LOG CRUD ---
+
+  Future<int> insertWatchLog(WatchEntry watchLog) async {
+    final db = await instance.database;
+    final map = watchLog.toMap();
+    if (map['id'] == null) map.remove('id');
+    return await db.insert('watch_logs', map, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<WatchEntry>> getAllWatchLogs() async {
+    final db = await instance.database;
+    final maps = await db.query('watch_logs', orderBy: 'createdAt DESC');
+    return maps.map((e) => WatchEntry.fromMap(e)).toList();
+  }
+
+  Future<int> updateWatchLog(WatchEntry watchLog) async {
+    final db = await instance.database;
+    final map = watchLog.toMap();
+    return await db.update('watch_logs', map, where: 'id = ?', whereArgs: [watchLog.id]);
+  }
+
+  Future<int> deleteWatchLog(int id) async {
+    final db = await instance.database;
+    return await db.delete('watch_logs', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> clearAllWatchLogs() async {
+    final db = await instance.database;
+    await db.delete('watch_logs');
   }
 
   // --- SETTINGS CRUD ---

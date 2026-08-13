@@ -19,6 +19,8 @@ class LogEntry {
   final String preMeal; // 'None', 'Light', 'Heavy'
   final bool preCoffee;
   final bool preAlcohol;
+  final int preContentDuration; // mins (0 = none)
+  final List<String> preContentTypes; // Content types consumed pre-session
 
   // Before Session
   final int urge; // 1-10
@@ -81,6 +83,8 @@ class LogEntry {
     this.preMeal = 'None',
     this.preCoffee = false,
     this.preAlcohol = false,
+    this.preContentDuration = 0,
+    this.preContentTypes = const [],
     this.urge = 5,
     this.mood = '',
     this.trigger = '',
@@ -160,6 +164,8 @@ class LogEntry {
       'preMeal': preMeal,
       'preCoffee': preCoffee ? 1 : 0,
       'preAlcohol': preAlcohol ? 1 : 0,
+      'preContentDuration': preContentDuration,
+      'preContentTypes': jsonEncode(preContentTypes),
       'urge': urge,
       'mood': mood,
       'trigger': trigger,
@@ -229,6 +235,14 @@ class LogEntry {
       } catch (_) {}
     }
 
+    List<String> parsedPreContentTypes = [];
+    if (map['preContentTypes'] != null && map['preContentTypes'].toString().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(map['preContentTypes']);
+        if (decoded is List) parsedPreContentTypes = decoded.map((e) => e.toString()).toList();
+      } catch (_) {}
+    }
+
     // Handle postMeal legacy boolean migration safely
     String parsedPostMeal = 'None';
     if (map['postMeal'] != null) {
@@ -254,6 +268,8 @@ class LogEntry {
       preMeal: map['preMeal'] ?? (map['mealEaten'] ?? 'None'),
       preCoffee: (map['preCoffee'] ?? 0) == 1,
       preAlcohol: (map['preAlcohol'] ?? 0) == 1,
+      preContentDuration: map['preContentDuration'] ?? 0,
+      preContentTypes: parsedPreContentTypes,
       urge: map['urge'] ?? 5,
       mood: map['mood'] ?? '',
       trigger: map['trigger'] ?? (map['reason'] ?? ''),

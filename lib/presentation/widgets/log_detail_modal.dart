@@ -186,6 +186,11 @@ class LogDetailModal extends ConsumerWidget {
                           _buildDetailRow('Coffee', log.preCoffee ? 'Yes' : 'No'),
                           _buildDetailRow('Alcohol', log.preAlcohol ? 'Yes' : 'No'),
                           _buildDetailRow('Sleep Quality (Prior Night)', '${log.preSleepQuality}/10 (${log.preSleepHours}h)'),
+                          if (log.preContentDuration > 0 || log.preContentTypes.isNotEmpty)
+                            _buildDetailRow(
+                              'Pre-Session Content',
+                              '${log.preContentDuration} mins${log.preContentTypes.isNotEmpty ? " (${log.preContentTypes.join(', ')})" : ""}',
+                            ),
                         ],
                       ),
                     ),

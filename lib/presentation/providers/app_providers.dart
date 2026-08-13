@@ -4,6 +4,7 @@ import '../../core/services/home_widget_service.dart';
 import '../../domain/models/app_settings.dart';
 import '../../domain/models/log_entry.dart';
 import '../../domain/models/stats_summary.dart';
+import '../../domain/models/watch_entry.dart';
 
 // --- LOGS NOTIFIER ---
 class LogsNotifier extends Notifier<List<LogEntry>> {
@@ -44,6 +45,42 @@ class LogsNotifier extends Notifier<List<LogEntry>> {
 }
 
 final logsProvider = NotifierProvider<LogsNotifier, List<LogEntry>>(LogsNotifier.new);
+
+// --- WATCH LOGS NOTIFIER ---
+class WatchLogsNotifier extends Notifier<List<WatchEntry>> {
+  @override
+  List<WatchEntry> build() {
+    loadWatchLogs();
+    return [];
+  }
+
+  Future<void> loadWatchLogs() async {
+    final watchLogs = await DBHelper.instance.getAllWatchLogs();
+    state = watchLogs;
+  }
+
+  Future<void> addWatchLog(WatchEntry watchLog) async {
+    await DBHelper.instance.insertWatchLog(watchLog);
+    await loadWatchLogs();
+  }
+
+  Future<void> updateWatchLog(WatchEntry watchLog) async {
+    await DBHelper.instance.updateWatchLog(watchLog);
+    await loadWatchLogs();
+  }
+
+  Future<void> deleteWatchLog(int id) async {
+    await DBHelper.instance.deleteWatchLog(id);
+    await loadWatchLogs();
+  }
+
+  Future<void> clearAll() async {
+    await DBHelper.instance.clearAllWatchLogs();
+    state = [];
+  }
+}
+
+final watchLogsProvider = NotifierProvider<WatchLogsNotifier, List<WatchEntry>>(WatchLogsNotifier.new);
 
 // --- SETTINGS NOTIFIER ---
 class SettingsNotifier extends Notifier<AppSettings> {
