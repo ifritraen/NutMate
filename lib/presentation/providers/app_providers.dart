@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/database/db_helper.dart';
 import '../../core/services/home_widget_service.dart';
 import '../../domain/models/app_settings.dart';
+import '../../domain/models/exercise_entry.dart';
 import '../../domain/models/log_entry.dart';
 import '../../domain/models/stats_summary.dart';
 import '../../domain/models/watch_entry.dart';
@@ -19,10 +21,11 @@ class LogsNotifier extends Notifier<List<LogEntry>> {
     state = logs;
   }
 
-  Future<void> addLog(LogEntry log) async {
-    await DBHelper.instance.insertLog(log);
+  Future<int> addLog(LogEntry log) async {
+    final id = await DBHelper.instance.insertLog(log);
     await loadLogs();
     await ref.read(settingsProvider.notifier).loadSettings();
+    return id;
   }
 
   Future<void> updateLog(LogEntry log) async {
@@ -81,6 +84,42 @@ class WatchLogsNotifier extends Notifier<List<WatchEntry>> {
 }
 
 final watchLogsProvider = NotifierProvider<WatchLogsNotifier, List<WatchEntry>>(WatchLogsNotifier.new);
+
+// --- EXERCISE LOGS NOTIFIER ---
+class ExerciseLogsNotifier extends Notifier<List<ExerciseEntry>> {
+  @override
+  List<ExerciseEntry> build() {
+    loadExerciseLogs();
+    return [];
+  }
+
+  Future<void> loadExerciseLogs() async {
+    final logs = await DBHelper.instance.getAllExerciseLogs();
+    state = logs;
+  }
+
+  Future<void> addExerciseLog(ExerciseEntry entry) async {
+    await DBHelper.instance.insertExerciseLog(entry);
+    await loadExerciseLogs();
+  }
+
+  Future<void> updateExerciseLog(ExerciseEntry entry) async {
+    await DBHelper.instance.updateExerciseLog(entry);
+    await loadExerciseLogs();
+  }
+
+  Future<void> deleteExerciseLog(int id) async {
+    await DBHelper.instance.deleteExerciseLog(id);
+    await loadExerciseLogs();
+  }
+
+  Future<void> clearAll() async {
+    await DBHelper.instance.clearAllExerciseLogs();
+    state = [];
+  }
+}
+
+final exerciseLogsProvider = NotifierProvider<ExerciseLogsNotifier, List<ExerciseEntry>>(ExerciseLogsNotifier.new);
 
 // --- SETTINGS NOTIFIER ---
 class SettingsNotifier extends Notifier<AppSettings> {
@@ -177,6 +216,20 @@ class SettingsNotifier extends Notifier<AppSettings> {
     await HomeWidgetService.setUpdateInterval(minutes);
   }
 
+  Future<void> setAutoBackupIntervalHours(int hours) async {
+    await DBHelper.instance.saveSetting('autoBackupIntervalHours', hours.toString());
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('flutter.autoBackupIntervalHours', hours);
+    state = state.copyWith(autoBackupIntervalHours: hours);
+  }
+
+  Future<void> setLastAutoBackupTime(DateTime time) async {
+    await DBHelper.instance.saveSetting('lastAutoBackupTime', time.toIso8601String());
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('flutter.lastAutoBackupTimestamp', time.millisecondsSinceEpoch);
+    state = state.copyWith(lastAutoBackupTime: time);
+  }
+
   Future<void> updateEdgeCount(int count) async {
     await DBHelper.instance.saveSetting('currentEdgeCount', count.toString());
     state = state.copyWith(currentEdgeCount: count);
@@ -207,9 +260,17 @@ final statsProvider = Provider<StatsSummary>((ref) {
     activeArousalCount: settings.currentArousalCount,
   );
 
+  // Compute effective last orgasm time chronologically for Home Widget
+  final masturbationLogs = logs.where((e) => e.type == SessionType.masturbation).toList();
+  DateTime? effectiveLastOrgasm = settings.lastStreakResetTime;
+  if (masturbationLogs.isNotEmpty) {
+    masturbationLogs.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    effectiveLastOrgasm = masturbationLogs.last.createdAt;
+  }
+
   HomeWidgetService.updateHomeWidget(
     summary,
-    lastOrgasmTime: settings.lastStreakResetTime,
+    lastOrgasmTime: effectiveLastOrgasm,
     isFrozen: settings.streakFrozen,
   );
   return summary;

@@ -44,6 +44,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            val keystoreFile = file("upload-keystore.jks")
+            if (keystoreFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
         release {
             val keystoreFile = file("upload-keystore.jks")
             if (keystoreFile.exists()) {

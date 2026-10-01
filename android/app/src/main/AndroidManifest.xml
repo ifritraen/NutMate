@@ -2,11 +2,19 @@
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>
 
     <application
         android:label="Nutmate"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="true"
+        android:restoreAnyVersion="true"
+        android:requestLegacyExternalStorage="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -78,6 +86,14 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/nutmate_widget_minimal_info" />
+        </receiver>
+
+        <receiver
+            android:name=".PostNutReminderReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.raen.nutmate.ACTION_POST_NUT_REMINDER" />
+            </intent-filter>
         </receiver>
 
         <meta-data

@@ -197,15 +197,33 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                                             ),
                                             child: Text(
                                               badgeLabel,
-                                              style: TextStyle(color: badgeTextColor, fontWeight: FontWeight.bold),
+                                              style: TextStyle(color: badgeTextColor, fontWeight: FontWeight.bold, fontSize: 12),
                                             ),
                                           ),
                                           const SizedBox(width: 8),
-                                          if (log.location.isNotEmpty) Text('• ${log.location}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                                          const Spacer(),
-                                          Text(dateFormat.format(log.createdAt), style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                                          if (log.location.isNotEmpty)
+                                            Flexible(
+                                              child: Text(
+                                                '• ${log.location}',
+                                                style: const TextStyle(color: Colors.white54, fontSize: 12),
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 1,
+                                              ),
+                                            ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              dateFormat.format(log.createdAt),
+                                              style: const TextStyle(color: Colors.white54, fontSize: 12),
+                                              textAlign: TextAlign.end,
+                                              overflow: TextOverflow.ellipsis,
+                                              maxLines: 1,
+                                            ),
+                                          ),
                                           PopupMenuButton<String>(
                                             icon: const Icon(Icons.more_vert, color: Colors.white38, size: 20),
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
                                             onSelected: (val) async {
                                               if (val == 'view') {
                                                 LogDetailModal.show(context, log, intervalStr);

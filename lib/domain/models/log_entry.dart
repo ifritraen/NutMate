@@ -68,6 +68,12 @@ class LogEntry {
   final bool didOrgasmOccur;
   final String endingReason;
 
+  // Exercise & General Reflections
+  final String exerciseType; // 'None', 'Gym / Weights', 'Cardio', 'Stretching / Yoga', 'Walk / Run', 'Bodyweight'
+  final int exerciseDurationMinutes; // mins
+  final String exerciseTiming; // 'Pre-Session', 'Post-Session', 'Earlier Today'
+  final String generalNotes; // Notable observations & general reflections
+
   LogEntry({
     this.id,
     required this.createdAt,
@@ -121,6 +127,10 @@ class LogEntry {
     this.nearOrgasmCount = 0,
     this.didOrgasmOccur = false,
     this.endingReason = '',
+    this.exerciseType = 'None',
+    this.exerciseDurationMinutes = 0,
+    this.exerciseTiming = 'Pre-Session',
+    this.generalNotes = '',
   });
 
   // Backward compatibility getters
@@ -141,8 +151,8 @@ class LogEntry {
   int get sleepQuality => preSleepQuality;
   double get sleepDurationHours => preSleepHours;
   String get reason => trigger.isNotEmpty ? trigger : (mood.isNotEmpty ? mood : 'Unspecified');
-  String get exerciseDone => preWorkout;
-  int get exerciseMinutes => postStretchDuration;
+  String get exerciseDone => exerciseType.isNotEmpty ? exerciseType : preWorkout;
+  int get exerciseMinutes => exerciseDurationMinutes > 0 ? exerciseDurationMinutes : postStretchDuration;
   int get meditationDone => preMeditation ? 1 : 0;
   int get meditationMinutes => preMeditationDuration;
   String get mealEaten => preMeal;
@@ -203,6 +213,12 @@ class LogEntry {
       'didOrgasmOccur': didOrgasmOccur ? 1 : 0,
       'endingReason': endingReason,
 
+      // New first-class Exercise & General Notes fields
+      'exerciseType': exerciseType,
+      'exerciseDurationMinutes': exerciseDurationMinutes,
+      'exerciseTiming': exerciseTiming,
+      'generalNotes': generalNotes,
+
       // Legacy table schema columns compatibility:
       'waterBeforeMl': waterBeforeMl,
       'waterAfterMl': waterAfterMl,
@@ -253,13 +269,18 @@ class LogEntry {
       }
     }
 
+    final exType = map['exerciseType'] as String? ?? (map['exerciseDone'] as String? ?? (map['preWorkout'] as String? ?? 'None'));
+    final exMins = (map['exerciseDurationMinutes'] as num?)?.toInt() ?? ((map['exerciseMinutes'] as num?)?.toInt() ?? 0);
+    final exTiming = map['exerciseTiming'] as String? ?? 'Pre-Session';
+    final gNotes = map['generalNotes'] as String? ?? (map['beforeNotes'] as String? ?? '');
+
     return LogEntry(
       id: map['id'] as int?,
       createdAt: DateTime.parse(map['createdAt']),
       updatedAt: DateTime.parse(map['updatedAt']),
       type: SessionType.values.firstWhere((e) => e.name == map['type'], orElse: () => SessionType.masturbation),
       preWater: map['preWater'] ?? 'None',
-      preWorkout: map['preWorkout'] ?? (map['exerciseDone'] ?? 'None'),
+      preWorkout: map['preWorkout'] ?? exType,
       preMeditation: (map['preMeditation'] ?? (map['meditationDone'] ?? 0)) == 1,
       preMeditationDuration: map['preMeditationDuration'] ?? (map['meditationMinutes'] ?? 0),
       preSleepQuality: map['preSleepQuality'] ?? (map['sleepQuality'] ?? 5),
@@ -306,6 +327,128 @@ class LogEntry {
       nearOrgasmCount: map['nearOrgasmCount'] ?? 0,
       didOrgasmOccur: (map['didOrgasmOccur'] ?? 0) == 1,
       endingReason: map['endingReason'] ?? '',
+      exerciseType: exType,
+      exerciseDurationMinutes: exMins,
+      exerciseTiming: exTiming,
+      generalNotes: gNotes,
+    );
+  }
+
+  LogEntry copyWith({
+    int? id,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    SessionType? type,
+    String? preWater,
+    String? preWorkout,
+    bool? preMeditation,
+    int? preMeditationDuration,
+    int? preSleepQuality,
+    double? preSleepHours,
+    int? preNapDuration,
+    String? preMeal,
+    bool? preCoffee,
+    bool? preAlcohol,
+    int? preContentDuration,
+    List<String>? preContentTypes,
+    int? urge,
+    String? mood,
+    String? trigger,
+    bool? isPlanned,
+    String? location,
+    List<String>? tags,
+    String? beforeNotes,
+    String? timeSinceLastOrgasmText,
+    int? lastEdgingCount,
+    DateTime? startTime,
+    DateTime? endTime,
+    double? durationMinutes,
+    String? method,
+    List<String>? contentUsed,
+    String? stimulus,
+    String? position,
+    String? duringNotes,
+    int? satisfaction,
+    int? orgasmQuality,
+    int? regret,
+    int? cleanupDurationSeconds,
+    String? afterNotes,
+    String? postWater,
+    bool? postStretch,
+    int? postStretchDuration,
+    String? postMeal,
+    bool? postNap,
+    int? postNapDuration,
+    bool? postMeditation,
+    int? postMeditationDuration,
+    int? edgingCountBeforeOrgasm,
+    int? arousalCountBeforeOrgasm,
+    int? urgeCountBeforeOrgasm,
+    int? nearOrgasmCount,
+    bool? didOrgasmOccur,
+    String? endingReason,
+    String? exerciseType,
+    int? exerciseDurationMinutes,
+    String? exerciseTiming,
+    String? generalNotes,
+  }) {
+    return LogEntry(
+      id: id ?? this.id,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      type: type ?? this.type,
+      preWater: preWater ?? this.preWater,
+      preWorkout: preWorkout ?? this.preWorkout,
+      preMeditation: preMeditation ?? this.preMeditation,
+      preMeditationDuration: preMeditationDuration ?? this.preMeditationDuration,
+      preSleepQuality: preSleepQuality ?? this.preSleepQuality,
+      preSleepHours: preSleepHours ?? this.preSleepHours,
+      preNapDuration: preNapDuration ?? this.preNapDuration,
+      preMeal: preMeal ?? this.preMeal,
+      preCoffee: preCoffee ?? this.preCoffee,
+      preAlcohol: preAlcohol ?? this.preAlcohol,
+      preContentDuration: preContentDuration ?? this.preContentDuration,
+      preContentTypes: preContentTypes ?? this.preContentTypes,
+      urge: urge ?? this.urge,
+      mood: mood ?? this.mood,
+      trigger: trigger ?? this.trigger,
+      isPlanned: isPlanned ?? this.isPlanned,
+      location: location ?? this.location,
+      tags: tags ?? this.tags,
+      beforeNotes: beforeNotes ?? this.beforeNotes,
+      timeSinceLastOrgasmText: timeSinceLastOrgasmText ?? this.timeSinceLastOrgasmText,
+      lastEdgingCount: lastEdgingCount ?? this.lastEdgingCount,
+      startTime: startTime ?? this.startTime,
+      endTime: endTime ?? this.endTime,
+      durationMinutes: durationMinutes ?? this.durationMinutes,
+      method: method ?? this.method,
+      contentUsed: contentUsed ?? this.contentUsed,
+      stimulus: stimulus ?? this.stimulus,
+      position: position ?? this.position,
+      duringNotes: duringNotes ?? this.duringNotes,
+      satisfaction: satisfaction ?? this.satisfaction,
+      orgasmQuality: orgasmQuality ?? this.orgasmQuality,
+      regret: regret ?? this.regret,
+      cleanupDurationSeconds: cleanupDurationSeconds ?? this.cleanupDurationSeconds,
+      afterNotes: afterNotes ?? this.afterNotes,
+      postWater: postWater ?? this.postWater,
+      postStretch: postStretch ?? this.postStretch,
+      postStretchDuration: postStretchDuration ?? this.postStretchDuration,
+      postMeal: postMeal ?? this.postMeal,
+      postNap: postNap ?? this.postNap,
+      postNapDuration: postNapDuration ?? this.postNapDuration,
+      postMeditation: postMeditation ?? this.postMeditation,
+      postMeditationDuration: postMeditationDuration ?? this.postMeditationDuration,
+      edgingCountBeforeOrgasm: edgingCountBeforeOrgasm ?? this.edgingCountBeforeOrgasm,
+      arousalCountBeforeOrgasm: arousalCountBeforeOrgasm ?? this.arousalCountBeforeOrgasm,
+      urgeCountBeforeOrgasm: urgeCountBeforeOrgasm ?? this.urgeCountBeforeOrgasm,
+      nearOrgasmCount: nearOrgasmCount ?? this.nearOrgasmCount,
+      didOrgasmOccur: didOrgasmOccur ?? this.didOrgasmOccur,
+      endingReason: endingReason ?? this.endingReason,
+      exerciseType: exerciseType ?? this.exerciseType,
+      exerciseDurationMinutes: exerciseDurationMinutes ?? this.exerciseDurationMinutes,
+      exerciseTiming: exerciseTiming ?? this.exerciseTiming,
+      generalNotes: generalNotes ?? this.generalNotes,
     );
   }
 

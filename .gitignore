@@ -4,6 +4,7 @@
 secrets.*
 sensitive.*
 *.log
+*.db
 
 # Flutter & Dart
 .dart_tool/

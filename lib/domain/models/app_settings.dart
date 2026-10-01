@@ -19,6 +19,8 @@ class AppSettings {
   final bool decoyPinEnabled;
   final String? decoyPinHash;
   final int widgetUpdateIntervalMinutes;
+  final int autoBackupIntervalHours;
+  final DateTime? lastAutoBackupTime;
 
   AppSettings({
     this.themeMode = AppThemeMode.dark,
@@ -37,6 +39,8 @@ class AppSettings {
     this.decoyPinEnabled = false,
     this.decoyPinHash,
     this.widgetUpdateIntervalMinutes = 5,
+    this.autoBackupIntervalHours = 0,
+    this.lastAutoBackupTime,
   });
 
   AppSettings copyWith({
@@ -56,6 +60,8 @@ class AppSettings {
     bool? decoyPinEnabled,
     String? decoyPinHash,
     int? widgetUpdateIntervalMinutes,
+    int? autoBackupIntervalHours,
+    DateTime? lastAutoBackupTime,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -74,6 +80,8 @@ class AppSettings {
       decoyPinEnabled: decoyPinEnabled ?? this.decoyPinEnabled,
       decoyPinHash: decoyPinHash ?? this.decoyPinHash,
       widgetUpdateIntervalMinutes: widgetUpdateIntervalMinutes ?? this.widgetUpdateIntervalMinutes,
+      autoBackupIntervalHours: autoBackupIntervalHours ?? this.autoBackupIntervalHours,
+      lastAutoBackupTime: lastAutoBackupTime ?? this.lastAutoBackupTime,
     );
   }
 }

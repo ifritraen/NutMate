@@ -10,14 +10,26 @@ import '../widgets/breathing_modal.dart';
 import '../widgets/floating_top_bar.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/heatmap_calendar.dart';
+import '../../core/services/timer_notification_service.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
-  final VoidCallback onAddLogTap;
+  final void Function({
+    double? initialDurationMinutes,
+    DateTime? initialStartTime,
+    DateTime? initialEndTime,
+  }) onAddLogTap;
+  final Function({
+    double? initialDurationMinutes,
+    DateTime? initialStartTime,
+    DateTime? initialEndTime,
+    String? initialCategory,
+  })? onLogExerciseTap;
   final bool isNavVisible;
 
   const DashboardScreen({
     super.key,
     required this.onAddLogTap,
+    this.onLogExerciseTap,
     this.isNavVisible = true,
   });
 
@@ -25,21 +37,190 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+class _DashboardScreenState extends ConsumerState<DashboardScreen> with WidgetsBindingObserver {
   Timer? _timer;
+
+  // Quick Session Stopwatch State
+  bool _isStopwatchRunning = false;
+  int _stopwatchSeconds = 0;
+  DateTime? _stopwatchStartTime;
+  Timer? _stopwatchTimer;
+
+  // Exercise Stopwatch State
+  bool _isExerciseStopwatchRunning = false;
+  int _exerciseStopwatchSeconds = 0;
+  DateTime? _exerciseStopwatchStartTime;
+  Timer? _exerciseStopwatchTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      if (_isStopwatchRunning && _stopwatchStartTime != null) {
+        setState(() {
+          _stopwatchSeconds = DateTime.now().difference(_stopwatchStartTime!).inSeconds;
+        });
+      }
+      if (_isExerciseStopwatchRunning && _exerciseStopwatchStartTime != null) {
+        setState(() {
+          _exerciseStopwatchSeconds = DateTime.now().difference(_exerciseStopwatchStartTime!).inSeconds;
+        });
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
+    _stopwatchTimer?.cancel();
+    _exerciseStopwatchTimer?.cancel();
+    TimerNotificationService.instance.disableWakelock();
     super.dispose();
+  }
+
+  void _startStopwatch() {
+    HapticService.selectionClick();
+    _stopwatchStartTime = DateTime.now().subtract(Duration(seconds: _stopwatchSeconds));
+    setState(() {
+      _isStopwatchRunning = true;
+    });
+    TimerNotificationService.instance.enableWakelock();
+    _stopwatchTimer?.cancel();
+    _stopwatchTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && _isStopwatchRunning && _stopwatchStartTime != null) {
+        setState(() {
+          _stopwatchSeconds = DateTime.now().difference(_stopwatchStartTime!).inSeconds;
+        });
+      }
+    });
+  }
+
+  void _toggleStopwatch() {
+    HapticService.selectionClick();
+    if (_isStopwatchRunning) {
+      _stopwatchTimer?.cancel();
+      setState(() {
+        _isStopwatchRunning = false;
+      });
+      TimerNotificationService.instance.disableWakelock();
+    } else {
+      _startStopwatch();
+    }
+  }
+
+  void _resetStopwatch() {
+    HapticService.selectionClick();
+    _stopwatchTimer?.cancel();
+    setState(() {
+      _isStopwatchRunning = false;
+      _stopwatchSeconds = 0;
+      _stopwatchStartTime = null;
+    });
+    TimerNotificationService.instance.disableWakelock();
+  }
+
+  void _finishAndLogStopwatch() {
+    HapticService.heavyImpact();
+    final totalSecs = _stopwatchSeconds;
+    final durationMins = (totalSecs / 60.0).clamp(1.0, 360.0);
+    final start = _stopwatchStartTime ?? DateTime.now().subtract(Duration(seconds: totalSecs));
+    final end = DateTime.now();
+
+    _stopwatchTimer?.cancel();
+    setState(() {
+      _isStopwatchRunning = false;
+      _stopwatchSeconds = 0;
+      _stopwatchStartTime = null;
+    });
+    TimerNotificationService.instance.disableWakelock();
+
+    widget.onAddLogTap(
+      initialDurationMinutes: durationMins,
+      initialStartTime: start,
+      initialEndTime: end,
+    );
+  }
+
+  void _startExerciseStopwatch() {
+    HapticService.selectionClick();
+    _exerciseStopwatchStartTime = DateTime.now().subtract(Duration(seconds: _exerciseStopwatchSeconds));
+    setState(() {
+      _isExerciseStopwatchRunning = true;
+    });
+    TimerNotificationService.instance.enableWakelock();
+    _exerciseStopwatchTimer?.cancel();
+    _exerciseStopwatchTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && _isExerciseStopwatchRunning && _exerciseStopwatchStartTime != null) {
+        setState(() {
+          _exerciseStopwatchSeconds = DateTime.now().difference(_exerciseStopwatchStartTime!).inSeconds;
+        });
+      }
+    });
+  }
+
+  void _toggleExerciseStopwatch() {
+    HapticService.selectionClick();
+    if (_isExerciseStopwatchRunning) {
+      _exerciseStopwatchTimer?.cancel();
+      setState(() {
+        _isExerciseStopwatchRunning = false;
+      });
+      TimerNotificationService.instance.disableWakelock();
+    } else {
+      _startExerciseStopwatch();
+    }
+  }
+
+  void _resetExerciseStopwatch() {
+    HapticService.selectionClick();
+    _exerciseStopwatchTimer?.cancel();
+    setState(() {
+      _isExerciseStopwatchRunning = false;
+      _exerciseStopwatchSeconds = 0;
+      _exerciseStopwatchStartTime = null;
+    });
+    TimerNotificationService.instance.disableWakelock();
+  }
+
+  void _finishAndLogExerciseStopwatch() {
+    HapticService.heavyImpact();
+    final totalSecs = _exerciseStopwatchSeconds;
+    final durationMins = (totalSecs / 60.0).clamp(1.0, 360.0);
+    final start = _exerciseStopwatchStartTime ?? DateTime.now().subtract(Duration(seconds: totalSecs));
+    final end = DateTime.now();
+
+    _exerciseStopwatchTimer?.cancel();
+    setState(() {
+      _isExerciseStopwatchRunning = false;
+      _exerciseStopwatchSeconds = 0;
+      _exerciseStopwatchStartTime = null;
+    });
+    TimerNotificationService.instance.disableWakelock();
+
+    widget.onLogExerciseTap?.call(
+      initialDurationMinutes: durationMins,
+      initialStartTime: start,
+      initialEndTime: end,
+    );
+  }
+
+  String _formatStopwatchTime(int totalSeconds) {
+    final hours = totalSeconds ~/ 3600;
+    final minutes = (totalSeconds % 3600) ~/ 60;
+    final seconds = totalSeconds % 60;
+    if (hours > 0) {
+      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    }
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -51,7 +232,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     final now = DateTime.now();
     final lastReset = settings.lastStreakResetTime;
-    final streak = lastReset != null ? now.difference(lastReset) : stats.currentStreak;
+    final streak = stats.currentStreak ?? (lastReset != null ? now.difference(lastReset) : null);
 
     final days = streak?.inDays ?? 0;
     final hours = (streak?.inHours ?? 0) % 24;
@@ -89,6 +270,350 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ),
                       const SizedBox(height: 12),
                       Text('Time since last masturbation session', style: theme.textTheme.bodySmall?.copyWith(color: Colors.white38)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Quick Session Stopwatch Card
+                GlassCard(
+                  padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+                  color: theme.colorScheme.surface,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: _isStopwatchRunning ? AppTheme.secondaryCyan.withOpacity(0.2) : Colors.white.withOpacity(0.06),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.play_circle_fill_rounded,
+                                  color: _isStopwatchRunning ? AppTheme.secondaryCyan : theme.colorScheme.primary,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                settings.stealthMode ? 'Focus Stopwatch' : 'Session Stopwatch',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _isStopwatchRunning
+                                  ? Colors.greenAccent.withOpacity(0.15)
+                                  : (_stopwatchSeconds > 0 ? Colors.amberAccent.withOpacity(0.15) : Colors.white.withOpacity(0.06)),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _isStopwatchRunning
+                                    ? Colors.greenAccent.withOpacity(0.4)
+                                    : (_stopwatchSeconds > 0 ? Colors.amberAccent.withOpacity(0.4) : Colors.white10),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: _isStopwatchRunning
+                                        ? Colors.greenAccent
+                                        : (_stopwatchSeconds > 0 ? Colors.amberAccent : Colors.white38),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  _isStopwatchRunning ? 'ACTIVE' : (_stopwatchSeconds > 0 ? 'PAUSED' : 'READY'),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                    color: _isStopwatchRunning
+                                        ? Colors.greenAccent
+                                        : (_stopwatchSeconds > 0 ? Colors.amberAccent : Colors.white54),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Monospace Time Display
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 24),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.03),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: _isStopwatchRunning ? AppTheme.secondaryCyan.withOpacity(0.3) : Colors.white.withOpacity(0.05),
+                            ),
+                          ),
+                          child: Text(
+                            _formatStopwatchTime(_stopwatchSeconds),
+                            style: TextStyle(
+                              fontSize: 34,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'monospace',
+                              letterSpacing: 2.0,
+                              color: _isStopwatchRunning ? AppTheme.secondaryCyan : (_stopwatchSeconds > 0 ? Colors.white : Colors.white70),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Control Buttons
+                      if (!_isStopwatchRunning && _stopwatchSeconds == 0)
+                        SizedBox(
+                          width: double.infinity,
+                          height: 46,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: theme.colorScheme.primary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: _startStopwatch,
+                            icon: const Icon(Icons.play_arrow_rounded, size: 22),
+                            label: Text(
+                              settings.stealthMode ? 'Start Focus Session' : 'Start Session Stopwatch',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                          ),
+                        )
+                      else
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: _isStopwatchRunning ? Colors.amberAccent : Colors.white,
+                                  side: BorderSide(
+                                    color: _isStopwatchRunning ? Colors.amberAccent.withOpacity(0.5) : Colors.white24,
+                                  ),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                ),
+                                onPressed: _toggleStopwatch,
+                                icon: Icon(_isStopwatchRunning ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 18),
+                                label: Text(_isStopwatchRunning ? 'Pause' : 'Resume', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: const Icon(Icons.refresh_rounded, size: 20, color: Colors.white60),
+                              tooltip: 'Reset Timer',
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.white.withOpacity(0.06),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: _resetStopwatch,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 4,
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.secondaryCyan,
+                                  foregroundColor: Colors.black,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                ),
+                                onPressed: _finishAndLogStopwatch,
+                                icon: const Icon(Icons.check_circle_rounded, size: 18),
+                                label: const Text('Finish & Log', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Quick Exercise Stopwatch Card
+                GlassCard(
+                  padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+                  color: theme.colorScheme.surface,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: _isExerciseStopwatchRunning ? AppTheme.secondaryCyan.withOpacity(0.2) : Colors.white.withOpacity(0.06),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    Icons.fitness_center_rounded,
+                                    color: _isExerciseStopwatchRunning ? AppTheme.secondaryCyan : Colors.white70,
+                                    size: 18,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Flexible(
+                                  child: Text(
+                                    settings.stealthMode ? 'Fitness Stopwatch' : 'Exercise Stopwatch',
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _isExerciseStopwatchRunning
+                                  ? Colors.greenAccent.withOpacity(0.15)
+                                  : (_exerciseStopwatchSeconds > 0 ? Colors.amberAccent.withOpacity(0.15) : Colors.white.withOpacity(0.06)),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _isExerciseStopwatchRunning
+                                    ? Colors.greenAccent.withOpacity(0.4)
+                                    : (_exerciseStopwatchSeconds > 0 ? Colors.amberAccent.withOpacity(0.4) : Colors.white10),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: _isExerciseStopwatchRunning
+                                        ? Colors.greenAccent
+                                        : (_exerciseStopwatchSeconds > 0 ? Colors.amberAccent : Colors.white38),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  _isExerciseStopwatchRunning
+                                      ? 'ACTIVE'
+                                      : (_exerciseStopwatchSeconds > 0 ? 'PAUSED' : 'READY'),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.8,
+                                    color: _isExerciseStopwatchRunning
+                                        ? Colors.greenAccent
+                                        : (_exerciseStopwatchSeconds > 0 ? Colors.amberAccent : Colors.white54),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Center(
+                        child: Text(
+                          _formatStopwatchTime(_exerciseStopwatchSeconds),
+                          style: TextStyle(
+                            fontSize: 38,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'monospace',
+                            color: _isExerciseStopwatchRunning ? AppTheme.secondaryCyan : Colors.white,
+                            letterSpacing: 2.0,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (!_isExerciseStopwatchRunning && _exerciseStopwatchSeconds == 0)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.secondaryCyan.withOpacity(0.2),
+                              foregroundColor: AppTheme.secondaryCyan,
+                              side: const BorderSide(color: AppTheme.secondaryCyan, width: 1.2),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 11),
+                            ),
+                            onPressed: _startExerciseStopwatch,
+                            icon: const Icon(Icons.play_arrow_rounded, size: 22),
+                            label: Text(
+                              settings.stealthMode ? 'Start Workout Timer' : 'Start Exercise Stopwatch',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                          ),
+                        )
+                      else
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: _isExerciseStopwatchRunning ? Colors.amberAccent : Colors.white,
+                                  side: BorderSide(
+                                    color: _isExerciseStopwatchRunning ? Colors.amberAccent.withOpacity(0.5) : Colors.white24,
+                                  ),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                ),
+                                onPressed: _toggleExerciseStopwatch,
+                                icon: Icon(_isExerciseStopwatchRunning ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 18),
+                                label: Text(_isExerciseStopwatchRunning ? 'Pause' : 'Resume', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: const Icon(Icons.refresh_rounded, size: 20, color: Colors.white60),
+                              tooltip: 'Reset Timer',
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.white.withOpacity(0.06),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: _resetExerciseStopwatch,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 4,
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.secondaryCyan,
+                                  foregroundColor: Colors.black,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                ),
+                                onPressed: _finishAndLogExerciseStopwatch,
+                                icon: const Icon(Icons.check_circle_rounded, size: 18),
+                                label: const Text('Log Workout', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              ),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),

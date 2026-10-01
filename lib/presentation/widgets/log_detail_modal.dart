@@ -237,14 +237,46 @@ class LogDetailModal extends ConsumerWidget {
                     const SizedBox(height: 16),
                   ],
 
-                  // Notes Card
-                  if (log.beforeNotes.isNotEmpty || log.duringNotes.isNotEmpty || log.afterNotes.isNotEmpty)
+                  // Exercise Card
+                  if (log.exerciseDurationMinutes > 0 || (log.exerciseType.isNotEmpty && log.exerciseType != 'None')) ...[
                     GlassCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Notes', style: theme.textTheme.titleSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
+                          Row(
+                            children: [
+                              const Icon(Icons.fitness_center, size: 18, color: AppTheme.secondaryCyan),
+                              const SizedBox(width: 8),
+                              Text('Exercise & Workout', style: theme.textTheme.titleSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
                           const SizedBox(height: 12),
+                          if (log.exerciseType.isNotEmpty && log.exerciseType != 'None')
+                            _buildDetailRow('Activity', log.exerciseType),
+                          if (log.exerciseDurationMinutes > 0)
+                            _buildDetailRow('Duration', '${log.exerciseDurationMinutes} mins'),
+                          if (log.exerciseTiming.isNotEmpty)
+                            _buildDetailRow('Timing', log.exerciseTiming),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Notes Card
+                  if (log.generalNotes.isNotEmpty || log.beforeNotes.isNotEmpty || log.duringNotes.isNotEmpty || log.afterNotes.isNotEmpty)
+                    GlassCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Notes & Observations', style: theme.textTheme.titleSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 12),
+                          if (log.generalNotes.isNotEmpty) ...[
+                            const Text('📝 General Notes:', style: TextStyle(color: AppTheme.secondaryCyan, fontSize: 12, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 4),
+                            Text(log.generalNotes, style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.4)),
+                            const SizedBox(height: 12),
+                          ],
                           if (log.beforeNotes.isNotEmpty) ...[
                             const Text('Before Notes:', style: TextStyle(color: Colors.white54, fontSize: 12)),
                             Text(log.beforeNotes, style: const TextStyle(color: Colors.white)),
@@ -277,8 +309,19 @@ class LogDetailModal extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.white60, fontSize: 13)),
-          Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
+          Flexible(
+            flex: 4,
+            child: Text(label, style: const TextStyle(color: Colors.white60, fontSize: 13)),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            flex: 5,
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+          ),
         ],
       ),
     );

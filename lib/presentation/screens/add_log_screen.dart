@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/services/haptic_service.dart';
+import '../../core/services/reminder_service.dart';
 import '../../core/services/timer_notification_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../domain/models/log_entry.dart';
@@ -20,6 +21,10 @@ class AddLogScreen extends ConsumerStatefulWidget {
   final VoidCallback? onSaved;
   final double? initialPreContentDuration;
   final List<String>? initialPreContentTypes;
+  final bool focusPostNut;
+  final double? initialSessionDuration;
+  final DateTime? initialSessionStartTime;
+  final DateTime? initialSessionEndTime;
 
   const AddLogScreen({
     super.key,
@@ -28,7 +33,16 @@ class AddLogScreen extends ConsumerStatefulWidget {
     this.onSaved,
     this.initialPreContentDuration,
     this.initialPreContentTypes,
+    this.focusPostNut = false,
+    this.initialSessionDuration,
+    this.initialSessionStartTime,
+    this.initialSessionEndTime,
+    this.initialExerciseDuration,
+    this.initialExerciseCategory,
   });
+
+  final double? initialExerciseDuration;
+  final String? initialExerciseCategory;
 
   @override
   ConsumerState<AddLogScreen> createState() => _AddLogScreenState();
@@ -44,6 +58,10 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
   bool _isDuringExpanded = true;
   bool _isAfterExpanded = true;
   bool _isPostNutExpanded = true;
+  bool _isExerciseExpanded = false;
+  bool _isGeneralNotesExpanded = false;
+
+  final GlobalKey _postNutKey = GlobalKey();
 
   // Pre-Nut (within 2h before) - Masturbation Only
   String _preWater = 'None';
@@ -67,7 +85,6 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
   String _location = 'Home';
   List<String> _tags = [];
   final TextEditingController _beforeNotesController = TextEditingController();
-  final TextEditingController _tagController = TextEditingController();
 
   // During
   late DateTime _startTime;
@@ -99,6 +116,18 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
   bool _postMeditation = false;
   double _postMeditationDuration = 0.0;
 
+  // Exercise & Workout Section
+  String _exerciseType = 'None';
+  double _exerciseDurationMinutes = 0.0;
+  String _exerciseTiming = 'Pre-Session';
+  bool _isExerciseTimerRunning = false;
+  int _exerciseTimerSeconds = 0;
+  DateTime? _exerciseTimerStartTime;
+  Timer? _exerciseStopwatchTimer;
+
+  // General Reflections & Notes
+  final TextEditingController _generalNotesController = TextEditingController();
+
   // Edging Specific
   double _nearOrgasmCount = 1.0;
   String _endingReason = '';
@@ -117,6 +146,19 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
     WidgetsBinding.instance.addObserver(this);
     TimerNotificationService.instance.enableWakelock();
     _resetForm();
+
+    if (widget.focusPostNut) {
+      _isPostNutExpanded = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_postNutKey.currentContext != null) {
+          Scrollable.ensureVisible(
+            _postNutKey.currentContext!,
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeInOut,
+          );
+        }
+      });
+    }
   }
 
   @override
@@ -127,16 +169,65 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
         _durationMinutes = (_timerSeconds / 60.0).clamp(1.0, 240.0);
       });
     }
+    if (state == AppLifecycleState.resumed && _isExerciseTimerRunning && _exerciseTimerStartTime != null && mounted) {
+      setState(() {
+        _exerciseTimerSeconds = DateTime.now().difference(_exerciseTimerStartTime!).inSeconds;
+        _exerciseDurationMinutes = (_exerciseTimerSeconds / 60.0).roundToDouble().clamp(0.0, 180.0);
+      });
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _stopwatchTimer?.cancel();
+    _exerciseStopwatchTimer?.cancel();
     TimerNotificationService.instance.disableWakelock();
     _beforeNotesController.dispose();
-    _tagController.dispose();
+    _generalNotesController.dispose();
     super.dispose();
+  }
+
+  void _toggleExerciseTimer() {
+    HapticService.selectionClick();
+    if (_isExerciseTimerRunning) {
+      _exerciseStopwatchTimer?.cancel();
+      setState(() {
+        _isExerciseTimerRunning = false;
+        _exerciseDurationMinutes = (_exerciseTimerSeconds / 60.0).roundToDouble().clamp(0.0, 180.0);
+      });
+    } else {
+      _exerciseTimerStartTime = DateTime.now().subtract(Duration(seconds: _exerciseTimerSeconds));
+      setState(() {
+        _isExerciseTimerRunning = true;
+      });
+      _exerciseStopwatchTimer?.cancel();
+      _exerciseStopwatchTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted && _isExerciseTimerRunning && _exerciseTimerStartTime != null) {
+          setState(() {
+            _exerciseTimerSeconds = DateTime.now().difference(_exerciseTimerStartTime!).inSeconds;
+            _exerciseDurationMinutes = (_exerciseTimerSeconds / 60.0).roundToDouble().clamp(0.0, 180.0);
+          });
+        }
+      });
+    }
+  }
+
+  void _resetExerciseTimer() {
+    HapticService.selectionClick();
+    _exerciseStopwatchTimer?.cancel();
+    setState(() {
+      _isExerciseTimerRunning = false;
+      _exerciseTimerSeconds = 0;
+      _exerciseTimerStartTime = null;
+      _exerciseDurationMinutes = 0.0;
+    });
+  }
+
+  String _formatExerciseTime(int totalSeconds) {
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   void _toggleLiveTimer() {
@@ -234,6 +325,14 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
       _manualEdgeCount = log.edgingCountBeforeOrgasm;
       _manualArousalCount = log.arousalCountBeforeOrgasm;
       _manualUrgeCount = log.urgeCountBeforeOrgasm;
+
+      _exerciseType = log.exerciseType.isEmpty ? 'None' : log.exerciseType;
+      _exerciseDurationMinutes = log.exerciseDurationMinutes.toDouble();
+      _exerciseTiming = log.exerciseTiming.isEmpty ? 'Pre-Session' : log.exerciseTiming;
+      _exerciseTimerSeconds = (_exerciseDurationMinutes * 60).round();
+      _generalNotesController.text = log.generalNotes;
+      _isExerciseExpanded = _exerciseDurationMinutes > 0 || _exerciseType != 'None';
+      _isGeneralNotesExpanded = log.generalNotes.isNotEmpty;
     } else {
       _sessionType = SessionType.masturbation;
       _preWater = 'None';
@@ -257,13 +356,20 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
       _tags = [];
       _beforeNotesController.clear();
 
-      _durationMinutes = 15.0;
+      _durationMinutes = widget.initialSessionDuration ?? 15.0;
       _method = 'Hand';
       _contentUsed = [];
       _stimulus = '💭 Pure Imagination / Fantasy';
       _position = 'Lying';
-      _timerSeconds = 0;
+      _timerSeconds = widget.initialSessionDuration != null ? (widget.initialSessionDuration! * 60).round() : 0;
       _isTimerRunning = false;
+
+      if (widget.initialSessionStartTime != null) {
+        _startTime = widget.initialSessionStartTime!;
+      }
+      if (widget.initialSessionEndTime != null) {
+        _endTime = widget.initialSessionEndTime!;
+      }
 
       _satisfaction = 5.0;
       _orgasmQuality = 5.0;
@@ -279,22 +385,20 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
       _postMeditation = false;
       _postMeditationDuration = 0.0;
 
+      _exerciseType = widget.initialExerciseCategory ?? 'None';
+      _exerciseDurationMinutes = widget.initialExerciseDuration ?? 0.0;
+      _exerciseTiming = 'Pre-Session';
+      _exerciseTimerSeconds = (_exerciseDurationMinutes * 60).round();
+      _isExerciseTimerRunning = false;
+      _generalNotesController.clear();
+      _isExerciseExpanded = _exerciseDurationMinutes > 0 || _exerciseType != 'None';
+      _isGeneralNotesExpanded = false;
+
       _nearOrgasmCount = 1.0;
       _endingReason = '';
       _manualEdgeCount = null;
       _manualArousalCount = null;
       _manualUrgeCount = null;
-    }
-  }
-
-  void _addTag(String tag) {
-    var cleaned = tag.trim().replaceAll(' ', '_');
-    if (!cleaned.startsWith('#')) cleaned = '#$cleaned';
-    if (cleaned.length > 1 && !_tags.contains(cleaned)) {
-      setState(() {
-        _tags.add(cleaned);
-        _tagController.clear();
-      });
     }
   }
 
@@ -322,7 +426,7 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
       final now = DateTime.now();
 
       final lastReset = settings.lastStreakResetTime;
-      final streak = lastReset != null ? now.difference(lastReset) : stats.currentStreak;
+      final streak = stats.currentStreak ?? (lastReset != null ? now.difference(lastReset) : null);
       final streakText = streak != null ? '${streak.inDays}d ${streak.inHours % 24}h ${streak.inMinutes % 60}m' : '0d 0h 0m';
 
       final log = LogEntry(
@@ -351,8 +455,8 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
         beforeNotes: _beforeNotesController.text,
         timeSinceLastOrgasmText: streakText,
         lastEdgingCount: settings.currentEdgeCount,
-        startTime: _sessionDateTime.subtract(Duration(minutes: _durationMinutes.round())),
-        endTime: _sessionDateTime,
+        startTime: _startTime,
+        endTime: _endTime,
         durationMinutes: _durationMinutes,
         method: _method.trim().isEmpty ? 'Hand' : _method,
         contentUsed: _contentUsed,
@@ -369,18 +473,43 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
         postNap: _postNap,
         postNapDuration: _postNapDuration.round(),
         postMeditation: _postMeditation,
+        postMeditationDuration: _postMeditationDuration.round(),
         edgingCountBeforeOrgasm: _sessionType == SessionType.masturbation ? (_manualEdgeCount ?? settings.currentEdgeCount) : 0,
         arousalCountBeforeOrgasm: _sessionType == SessionType.masturbation ? (_manualArousalCount ?? settings.currentArousalCount) : 0,
         urgeCountBeforeOrgasm: _sessionType == SessionType.masturbation ? (_manualUrgeCount ?? settings.currentUrgeCount) : 0,
         nearOrgasmCount: _nearOrgasmCount.round(),
         endingReason: _endingReason,
+        exerciseType: _exerciseType,
+        exerciseDurationMinutes: _exerciseDurationMinutes.round(),
+        exerciseTiming: _exerciseTiming,
+        generalNotes: _generalNotesController.text.trim(),
       );
 
-
+      int savedId;
       if (widget.existingLog != null) {
         await ref.read(logsProvider.notifier).updateLog(log);
+        savedId = widget.existingLog!.id ?? 1;
       } else {
-        await ref.read(logsProvider.notifier).addLog(log);
+        savedId = await ref.read(logsProvider.notifier).addLog(log);
+      }
+
+      // Schedule or cancel 2-hour post-nut reminder for masturbation sessions
+      if (_sessionType == SessionType.masturbation) {
+        final hasPostNutRecovery = _postWater != 'None' ||
+            _postStretch ||
+            _postMeal != 'None' ||
+            _postNap ||
+            _postMeditation;
+
+        if (widget.existingLog != null && hasPostNutRecovery) {
+          await ReminderService.cancelPostNutReminder(savedId);
+        } else {
+          await ReminderService.schedulePostNutReminder(
+            logId: savedId,
+            isStealth: settings.stealthMode,
+            delayMinutes: 120,
+          );
+        }
       }
 
       if (mounted) {
@@ -476,14 +605,14 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
     final stats = ref.watch(statsProvider);
 
     final lastReset = settings.lastStreakResetTime;
-    final streak = lastReset != null ? DateTime.now().difference(lastReset) : stats.currentStreak;
+    final streak = stats.currentStreak ?? (lastReset != null ? DateTime.now().difference(lastReset) : null);
     final timeSinceOrgasmText = streak != null ? '${streak.inDays}d ${streak.inHours % 24}h ${streak.inMinutes % 60}m' : '0d 0h 0m';
 
     return Scaffold(
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: const EdgeInsets.only(top: 90, left: 16, right: 16, bottom: 90),
+            padding: const EdgeInsets.only(top: 90, left: 16, right: 16, bottom: 160),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1201,80 +1330,329 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
                   const SizedBox(height: 20),
 
                   // POST-NUT SECTION (COLLAPSIBLE)
-                  _buildSectionHeader(
-                    title: 'Post-Nut (Within 1h After Orgasm)',
-                    subtitle: 'Recovery habits, meal & activity sliders',
-                    isExpanded: _isPostNutExpanded,
-                    onToggle: () => setState(() => _isPostNutExpanded = !_isPostNutExpanded),
-                  ),
-                  if (_isPostNutExpanded) ...[
-                    const SizedBox(height: 8),
-                    GlassCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ChipSelector(
-                            title: 'Water Intake',
-                            options: const ['None', '250 ml', '500 ml', '1L+'],
-                            selectedSingle: _postWater,
-                            onSingleSelected: (val) => setState(() => _postWater = val),
-                          ),
-                          const SizedBox(height: 16),
-                          ChipSelector(
-                            title: 'Meal Intake',
-                            options: const ['None', 'Light', 'Heavy'],
-                            selectedSingle: _postMeal,
-                            onSingleSelected: (val) => setState(() => _postMeal = val),
-                          ),
-                          const SizedBox(height: 16),
-                          Text('Post-Nut Stretch: ${_postStretchDuration.round()} mins', style: theme.textTheme.titleMedium),
-                          Slider(
-                            value: _postStretchDuration,
-                            min: 0,
-                            max: 60,
-                            divisions: 60,
-                            onChanged: (val) {
-                              HapticService.selectionClick();
-                              setState(() {
-                                _postStretchDuration = val;
-                                _postStretch = val > 0;
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                          Text('Post-Nut Nap / Sleep: ${_postNapDuration.round()} mins', style: theme.textTheme.titleMedium),
-                          Slider(
-                            value: _postNapDuration,
-                            min: 0,
-                            max: 120,
-                            divisions: 120,
-                            onChanged: (val) {
-                              HapticService.selectionClick();
-                              setState(() {
-                                _postNapDuration = val;
-                                _postNap = val > 0;
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                          Text('Post-Nut Meditation: ${_postMeditationDuration.round()} mins', style: theme.textTheme.titleMedium),
-                          Slider(
-                            value: _postMeditationDuration,
-                            min: 0,
-                            max: 60,
-                            divisions: 60,
-                            onChanged: (val) {
-                              HapticService.selectionClick();
-                              setState(() {
-                                _postMeditationDuration = val;
-                                _postMeditation = val > 0;
-                              });
-                            },
+                  Container(
+                    key: _postNutKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionHeader(
+                          title: 'Post-Nut (Within 1h After Orgasm)',
+                          subtitle: widget.focusPostNut
+                              ? '🔔 Recovery Reminder: Complete your post-nut items below'
+                              : 'Recovery habits, meal & activity sliders',
+                          isExpanded: _isPostNutExpanded,
+                          onToggle: () => setState(() => _isPostNutExpanded = !_isPostNutExpanded),
+                        ),
+                        if (_isPostNutExpanded) ...[
+                          const SizedBox(height: 8),
+                          GlassCard(
+                            border: widget.focusPostNut
+                                ? Border.all(color: AppTheme.secondaryCyan, width: 1.5)
+                                : null,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (widget.focusPostNut) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    margin: const EdgeInsets.only(bottom: 14),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.secondaryCyan.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: AppTheme.secondaryCyan.withOpacity(0.3)),
+                                    ),
+                                    child: const Row(
+                                      children: [
+                                        Icon(Icons.notifications_active_outlined, color: AppTheme.secondaryCyan, size: 18),
+                                        SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            '2-Hour Follow-Up: Update your recovery hydration, meal & rest below.',
+                                            style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                ChipSelector(
+                                  title: 'Water Intake',
+                                  options: const ['None', '250 ml', '500 ml', '1L+'],
+                                  selectedSingle: _postWater,
+                                  onSingleSelected: (val) => setState(() => _postWater = val),
+                                ),
+                                const SizedBox(height: 16),
+                                ChipSelector(
+                                  title: 'Meal Intake',
+                                  options: const ['None', 'Light', 'Heavy'],
+                                  selectedSingle: _postMeal,
+                                  onSingleSelected: (val) => setState(() => _postMeal = val),
+                                ),
+                                const SizedBox(height: 16),
+                                Text('Post-Nut Stretch: ${_postStretchDuration.round()} mins', style: theme.textTheme.titleMedium),
+                                Slider(
+                                  value: _postStretchDuration,
+                                  min: 0,
+                                  max: 60,
+                                  divisions: 60,
+                                  onChanged: (val) {
+                                    HapticService.selectionClick();
+                                    setState(() {
+                                      _postStretchDuration = val;
+                                      _postStretch = val > 0;
+                                    });
+                                  },
+                                ),
+                                const SizedBox(height: 12),
+                                Text('Post-Nut Nap / Sleep: ${_postNapDuration.round()} mins', style: theme.textTheme.titleMedium),
+                                Slider(
+                                  value: _postNapDuration,
+                                  min: 0,
+                                  max: 120,
+                                  divisions: 120,
+                                  onChanged: (val) {
+                                    HapticService.selectionClick();
+                                    setState(() {
+                                      _postNapDuration = val;
+                                      _postNap = val > 0;
+                                    });
+                                  },
+                                ),
+                                const SizedBox(height: 12),
+                                Text('Post-Nut Meditation: ${_postMeditationDuration.round()} mins', style: theme.textTheme.titleMedium),
+                                Slider(
+                                  value: _postMeditationDuration,
+                                  min: 0,
+                                  max: 60,
+                                  divisions: 60,
+                                  onChanged: (val) {
+                                    HapticService.selectionClick();
+                                    setState(() {
+                                      _postMeditationDuration = val;
+                                      _postMeditation = val > 0;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
                         ],
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
+                ],
+
+                // ==========================================
+                // 5. EXERCISE & WORKOUT SECTION (COLLAPSIBLE)
+                // ==========================================
+                const SizedBox(height: 20),
+                _buildSectionHeader(
+                  title: '🏃 Exercise & Workout (Optional)',
+                  subtitle: _exerciseDurationMinutes > 0 || _exerciseType != 'None'
+                      ? '$_exerciseType • ${_exerciseDurationMinutes.round()}m ($_exerciseTiming)'
+                      : 'Track exercise stopwatch, activity & timing',
+                  isExpanded: _isExerciseExpanded,
+                  onToggle: () => setState(() => _isExerciseExpanded = !_isExerciseExpanded),
+                ),
+                if (_isExerciseExpanded) ...[
+                  const SizedBox(height: 8),
+                  GlassCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Live Exercise Stopwatch Banner
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.04),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: _isExerciseTimerRunning
+                                  ? AppTheme.secondaryCyan.withOpacity(0.6)
+                                  : (_exerciseTimerSeconds > 0 ? Colors.amberAccent.withOpacity(0.4) : Colors.white10),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: _isExerciseTimerRunning ? AppTheme.secondaryCyan.withOpacity(0.2) : Colors.white.withOpacity(0.06),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.timer_outlined,
+                                  color: _isExerciseTimerRunning ? AppTheme.secondaryCyan : Colors.white70,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Exercise Stopwatch', style: TextStyle(fontSize: 11, color: Colors.white54)),
+                                  Text(
+                                    _formatExerciseTime(_exerciseTimerSeconds),
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      fontFamily: 'monospace',
+                                      color: _isExerciseTimerRunning ? AppTheme.secondaryCyan : Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Spacer(),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _isExerciseTimerRunning
+                                      ? Colors.amber.withOpacity(0.2)
+                                      : theme.colorScheme.primary.withOpacity(0.3),
+                                  foregroundColor: _isExerciseTimerRunning ? Colors.amberAccent : theme.colorScheme.primary,
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                                onPressed: _toggleExerciseTimer,
+                                icon: Icon(_isExerciseTimerRunning ? Icons.pause : Icons.play_arrow, size: 18),
+                                label: Text(
+                                  _isExerciseTimerRunning ? 'Pause' : (_exerciseTimerSeconds > 0 ? 'Resume' : 'Start'),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
+                              ),
+                              if (_exerciseTimerSeconds > 0) ...[
+                                const SizedBox(width: 6),
+                                IconButton(
+                                  icon: const Icon(Icons.refresh, size: 18, color: Colors.white60),
+                                  tooltip: 'Reset Exercise Stopwatch',
+                                  onPressed: _resetExerciseTimer,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Exercise Category Chips
+                        ChipSelector(
+                          title: 'Exercise Category',
+                          options: const ['None', 'Gym / Weights', 'Cardio', 'Stretching / Yoga', 'Walk / Run', 'Bodyweight'],
+                          selectedSingle: _exerciseType,
+                          onSingleSelected: (val) {
+                            HapticService.selectionClick();
+                            setState(() => _exerciseType = val);
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Exercise Timing Chips
+                        ChipSelector(
+                          title: 'Exercise Timing',
+                          options: const ['Pre-Session', 'Post-Session', 'Earlier Today'],
+                          selectedSingle: _exerciseTiming,
+                          onSingleSelected: (val) {
+                            HapticService.selectionClick();
+                            setState(() => _exerciseTiming = val);
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Duration Slider
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Exercise Duration: ${_exerciseDurationMinutes.round()} mins',
+                                style: theme.textTheme.titleMedium,
+                              ),
+                            ),
+                            if (_exerciseDurationMinutes > 0)
+                              TextButton(
+                                onPressed: () {
+                                  HapticService.selectionClick();
+                                  setState(() {
+                                    _exerciseDurationMinutes = 0;
+                                    _exerciseTimerSeconds = 0;
+                                  });
+                                },
+                                child: const Text('Clear', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                              ),
+                          ],
+                        ),
+                        Slider(
+                          value: _exerciseDurationMinutes,
+                          min: 0,
+                          max: 120,
+                          divisions: 24,
+                          onChanged: (val) {
+                            HapticService.selectionClick();
+                            setState(() {
+                              _exerciseDurationMinutes = val;
+                              _exerciseTimerSeconds = (val * 60).round();
+                            });
+                          },
+                        ),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [15, 30, 45, 60].map((mins) {
+                            return ActionChip(
+                              label: Text('+$mins min', style: const TextStyle(fontSize: 11)),
+                              backgroundColor: Colors.white.withOpacity(0.06),
+                              onPressed: () {
+                                HapticService.selectionClick();
+                                setState(() {
+                                  _exerciseDurationMinutes = (_exerciseDurationMinutes + mins).clamp(0.0, 180.0);
+                                  _exerciseTimerSeconds = (_exerciseDurationMinutes * 60).round();
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // ==========================================
+                // 6. GENERAL NOTES & NOTABLE OBSERVATIONS (COLLAPSIBLE)
+                // ==========================================
+                const SizedBox(height: 20),
+                _buildSectionHeader(
+                  title: '📝 General Notes & Notable Observations (Optional)',
+                  subtitle: _generalNotesController.text.isNotEmpty
+                      ? 'Note entered (${_generalNotesController.text.length} chars)'
+                      : 'Freeform context, sensations, environmental factors & thoughts',
+                  isExpanded: _isGeneralNotesExpanded,
+                  onToggle: () => setState(() => _isGeneralNotesExpanded = !_isGeneralNotesExpanded),
+                ),
+                if (_isGeneralNotesExpanded) ...[
+                  const SizedBox(height: 8),
+                  GlassCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          controller: _generalNotesController,
+                          maxLines: 6,
+                          minLines: 3,
+                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          decoration: InputDecoration(
+                            hintText: 'Add any notable physical sensations, mental state, environmental factors, or thoughts not covered above...',
+                            hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+                            filled: true,
+                            fillColor: Colors.white.withOpacity(0.04),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: theme.colorScheme.primary.withOpacity(0.5)),
+                            ),
+                          ),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
                 const SizedBox(height: 32),
 
@@ -1348,10 +1726,12 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.white)),
-                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
@@ -1369,7 +1749,7 @@ class _AddLogScreenState extends ConsumerState<AddLogScreen> with WidgetsBinding
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 11)),
               ],
             ),

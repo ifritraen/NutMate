@@ -3,8 +3,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/database/db_helper.dart';
 import '../../core/services/backup_service.dart';
 import '../../core/services/biometric_service.dart';
 import '../../core/services/haptic_service.dart';
@@ -80,6 +82,54 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _performManualBackup(BuildContext context, WidgetRef ref) async {
+    HapticService.mediumImpact();
+    final hasAccess = await BackupService.hasAllFilesAccess();
+    if (!hasAccess && context.mounted) {
+      final shouldRequest = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('All Files Access Needed'),
+          content: const Text(
+            'To store backups in /sdcard/NutMate/Backups (which remain completely safe even if the app is uninstalled), Android requires All Files Access permission.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Grant Access'),
+            ),
+          ],
+        ),
+      );
+      if (shouldRequest == true) {
+        await BackupService.requestAllFilesAccess();
+        return;
+      }
+    }
+
+    final result = await BackupService.performFullBackup();
+    if (!context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    if (result.success) {
+      await ref.read(settingsProvider.notifier).setLastAutoBackupTime(DateTime.now());
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Backup saved! (${result.logCount} logs, ${result.watchCount} media logs)\nSaved to ${result.path}'),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Backup failed: ${result.error}'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+    }
+
   Future<void> _exportBackup(BuildContext context, WidgetRef ref) async {
     HapticService.mediumImpact();
     final logs = ref.read(logsProvider);
@@ -107,28 +157,55 @@ class SettingsScreen extends ConsumerWidget {
     HapticService.mediumImpact();
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['json'],
+      allowedExtensions: ['json', 'db'],
     );
 
     if (result != null && result.files.single.path != null) {
       try {
         final filePath = result.files.single.path!;
-        final jsonStr = await File(filePath).readAsString();
-        final logs = BackupService.importFromJson(jsonStr);
+        final fileName = filePath.toLowerCase();
 
-        for (var log in logs) {
-          await ref.read(logsProvider.notifier).addLog(log);
-        }
+        if (fileName.endsWith('.db')) {
+          // Native SQLite Database restore
+          final success = await DBHelper.instance.restoreDatabaseFromFile(filePath);
+          if (!success) {
+            throw Exception('Failed to restore database from .db file');
+          }
 
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Imported ${logs.length} logs successfully!')),
-          );
+          // Reload all providers to immediately refresh UI
+          await ref.read(logsProvider.notifier).loadLogs();
+          await ref.read(watchLogsProvider.notifier).loadWatchLogs();
+          await ref.read(exerciseLogsProvider.notifier).loadExerciseLogs();
+          await ref.read(settingsProvider.notifier).loadSettings();
+
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Database (.db) restored successfully! All records intact.')),
+            );
+          }
+        } else {
+          // JSON backup import
+          final jsonStr = await File(filePath).readAsString();
+          final parsed = BackupService.importFromJson(jsonStr);
+
+          final count = await DBHelper.instance.restoreFromJson(parsed);
+
+          // Reload all providers
+          await ref.read(logsProvider.notifier).loadLogs();
+          await ref.read(watchLogsProvider.notifier).loadWatchLogs();
+          await ref.read(exerciseLogsProvider.notifier).loadExerciseLogs();
+          await ref.read(settingsProvider.notifier).loadSettings();
+
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Restored $count logs, ${parsed.watchLogs.length} watch logs, and ${parsed.exerciseLogs.length} workouts successfully!')),
+            );
+          }
         }
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Import failed: ${e.toString()}'), backgroundColor: Colors.redAccent),
+            SnackBar(content: Text('Restore failed: ${e.toString()}'), backgroundColor: Colors.redAccent),
           );
         }
       }
@@ -382,18 +459,131 @@ class SettingsScreen extends ConsumerWidget {
               GlassCard(
                 child: Column(
                   children: [
+                    // All Files Access Permission
+                    FutureBuilder<bool>(
+                      future: BackupService.hasAllFilesAccess(),
+                      builder: (context, snapshot) {
+                        final hasAccess = snapshot.data ?? false;
+                        return ListTile(
+                          leading: Icon(
+                            hasAccess ? Icons.folder_special : Icons.folder_shared_outlined,
+                            color: hasAccess ? Colors.greenAccent : Colors.amberAccent,
+                          ),
+                          title: const Text('All Files Access (Indestructible Storage)'),
+                          subtitle: Text(
+                            hasAccess
+                                ? 'Permission granted. Backups survive app uninstalls.'
+                                : 'Tap to grant permission to save to /sdcard/NutMate/Backups/',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: hasAccess
+                                  ? Colors.greenAccent.withOpacity(0.8)
+                                  : Colors.amberAccent.withOpacity(0.8),
+                            ),
+                          ),
+                          trailing: hasAccess
+                              ? const Icon(Icons.check_circle, color: Colors.greenAccent, size: 20)
+                              : ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.amber.withOpacity(0.2),
+                                    foregroundColor: Colors.amberAccent,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  onPressed: () => BackupService.requestAllFilesAccess(),
+                                  child: const Text('Grant', style: TextStyle(fontSize: 12)),
+                                ),
+                          onTap: hasAccess ? null : () => BackupService.requestAllFilesAccess(),
+                        );
+                      },
+                    ),
+                    const Divider(color: Colors.white10),
+
+                    // Auto Backup Schedule
                     ListTile(
-                      leading: Icon(Icons.download, color: accentColor),
-                      title: const Text('Export Database (JSON)'),
+                      leading: Icon(Icons.auto_mode, color: accentColor),
+                      title: const Text('Auto Backup Schedule'),
+                      subtitle: Text(
+                        settings.autoBackupIntervalHours == 0
+                            ? 'Disabled'
+                            : 'Every ${settings.autoBackupIntervalHours >= 24 ? '${settings.autoBackupIntervalHours ~/ 24} day(s)' : '${settings.autoBackupIntervalHours} hours'}',
+                        style: const TextStyle(fontSize: 12, color: Colors.white60),
+                      ),
+                      trailing: DropdownButton<int>(
+                        value: [0, 6, 12, 24, 48, 72, 168].contains(settings.autoBackupIntervalHours)
+                            ? settings.autoBackupIntervalHours
+                            : 0,
+                        dropdownColor: const Color(0xFF1E1E2E),
+                        underline: const SizedBox(),
+                        style: TextStyle(color: accentColor, fontSize: 13),
+                        items: const [
+                          DropdownMenuItem(value: 0, child: Text('Off')),
+                          DropdownMenuItem(value: 6, child: Text('6 Hours')),
+                          DropdownMenuItem(value: 12, child: Text('12 Hours')),
+                          DropdownMenuItem(value: 24, child: Text('24 Hours (1 Day)')),
+                          DropdownMenuItem(value: 48, child: Text('2 Days')),
+                          DropdownMenuItem(value: 72, child: Text('3 Days')),
+                          DropdownMenuItem(value: 168, child: Text('7 Days (1 Wk)')),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            ref.read(settingsProvider.notifier).setAutoBackupIntervalHours(val);
+                          }
+                        },
+                      ),
+                    ),
+                    if (settings.lastAutoBackupTime != null) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.history, size: 14, color: Colors.white38),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Last backed up: ${DateFormat('MMM dd, yyyy HH:mm').format(settings.lastAutoBackupTime!)}',
+                                style: const TextStyle(fontSize: 11, color: Colors.white38),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const Divider(color: Colors.white10),
+
+                    // Manual Backup to Storage
+                    ListTile(
+                      leading: Icon(Icons.save_alt, color: accentColor),
+                      title: const Text('Backup Now to Storage'),
+                      subtitle: const Text(
+                        'Directly exports .db and .json to /sdcard/NutMate/Backups/',
+                        style: TextStyle(fontSize: 12, color: Colors.white60),
+                      ),
+                      onTap: () => _performManualBackup(context, ref),
+                    ),
+                    const Divider(color: Colors.white10),
+
+                    // Share Backup File (JSON)
+                    ListTile(
+                      leading: Icon(Icons.share, color: accentColor),
+                      title: const Text('Share Backup File (JSON)'),
                       onTap: () => _exportBackup(context, ref),
                     ),
                     const Divider(color: Colors.white10),
+
+                    // Restore Database (.db / JSON)
                     ListTile(
                       leading: const Icon(Icons.upload, color: AppTheme.primaryViolet),
-                      title: const Text('Import Database (JSON)'),
+                      title: const Text('Restore Database (.db / JSON)'),
+                      subtitle: const Text(
+                        'Restores from /sdcard/NutMate/Backups/ or any .db/.json file',
+                        style: TextStyle(fontSize: 12, color: Colors.white60),
+                      ),
                       onTap: () => _importBackup(context, ref),
                     ),
                     const Divider(color: Colors.white10),
+
+                    // Reset Database
                     ListTile(
                       leading: const Icon(Icons.delete_forever, color: Colors.redAccent),
                       title: const Text('Reset Database', style: TextStyle(color: Colors.redAccent)),

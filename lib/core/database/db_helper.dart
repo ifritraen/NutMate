@@ -1,19 +1,37 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../domain/models/app_settings.dart';
+import '../../domain/models/exercise_entry.dart';
 import '../../domain/models/log_entry.dart';
 import '../../domain/models/watch_entry.dart';
+import '../services/backup_service.dart';
 
 class DBHelper {
   static final DBHelper instance = DBHelper._init();
   static Database? _database;
+  static Completer<Database>? _initCompleter;
 
   DBHelper._init();
 
   Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await _initDB('nutmate.db');
-    return _database!;
+    if (_database != null && _database!.isOpen) return _database!;
+    if (_initCompleter != null) return _initCompleter!.future;
+
+    _initCompleter = Completer<Database>();
+    try {
+      final db = await _initDB('nutmate.db');
+      _database = db;
+      _initCompleter!.complete(db);
+      return db;
+    } catch (e) {
+      _initCompleter!.completeError(e);
+      _initCompleter = null;
+      rethrow;
+    } finally {
+      _initCompleter = null;
+    }
   }
 
   Future<Database> _initDB(String filePath) async {
@@ -28,6 +46,8 @@ class DBHelper {
       onOpen: (db) async {
         await _ensureColumnsExist(db);
         await _ensureWatchLogsTableExist(db);
+        await _ensureExerciseLogsTableExist(db);
+        await _syncStreakAndCounters(db);
       },
     );
   }
@@ -97,7 +117,11 @@ class DBHelper {
         meditationDone INTEGER NOT NULL DEFAULT 0,
         meditationMinutes INTEGER NOT NULL DEFAULT 0,
         mealEaten TEXT DEFAULT 'None',
-        napTaken INTEGER NOT NULL DEFAULT 0
+        napTaken INTEGER NOT NULL DEFAULT 0,
+        exerciseType TEXT DEFAULT 'None',
+        exerciseDurationMinutes INTEGER NOT NULL DEFAULT 0,
+        exerciseTiming TEXT DEFAULT 'Pre-Session',
+        generalNotes TEXT DEFAULT ''
       )
     ''');
 
@@ -196,9 +220,12 @@ class DBHelper {
       'exerciseDone': 'ALTER TABLE logs ADD COLUMN exerciseDone TEXT DEFAULT \'None\'',
       'exerciseMinutes': 'ALTER TABLE logs ADD COLUMN exerciseMinutes INTEGER NOT NULL DEFAULT 0',
       'meditationDone': 'ALTER TABLE logs ADD COLUMN meditationDone INTEGER NOT NULL DEFAULT 0',
-      'meditationMinutes': 'ALTER TABLE logs ADD COLUMN meditationMinutes INTEGER NOT NULL DEFAULT 0',
       'mealEaten': 'ALTER TABLE logs ADD COLUMN mealEaten TEXT DEFAULT \'None\'',
       'napTaken': 'ALTER TABLE logs ADD COLUMN napTaken INTEGER NOT NULL DEFAULT 0',
+      'exerciseType': 'ALTER TABLE logs ADD COLUMN exerciseType TEXT DEFAULT \'None\'',
+      'exerciseDurationMinutes': 'ALTER TABLE logs ADD COLUMN exerciseDurationMinutes INTEGER NOT NULL DEFAULT 0',
+      'exerciseTiming': 'ALTER TABLE logs ADD COLUMN exerciseTiming TEXT DEFAULT \'Pre-Session\'',
+      'generalNotes': 'ALTER TABLE logs ADD COLUMN generalNotes TEXT DEFAULT \'\'',
     };
 
     for (var entry in requiredColumns.entries) {
@@ -244,23 +271,48 @@ class DBHelper {
 
   // --- LOG CRUD ---
 
+  Future<void> _syncStreakAndCounters(Database db) async {
+    final maps = await db.query(
+      'logs',
+      where: "type = 'masturbation' OR type = 'SessionType.masturbation'",
+      orderBy: 'createdAt DESC',
+      limit: 1,
+    );
+    if (maps.isNotEmpty) {
+      final latestCreatedAt = maps.first['createdAt'] as String?;
+      if (latestCreatedAt != null && latestCreatedAt.isNotEmpty) {
+        await db.insert('settings', {'key': 'lastStreakResetTime', 'value': latestCreatedAt}, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+    }
+  }
+
   Future<int> insertLog(LogEntry log) async {
     final db = await instance.database;
     final map = await _sanitizeMapForLogs(db, log.toMap());
 
     final id = await db.insert('logs', map, conflictAlgorithm: ConflictAlgorithm.replace);
 
+    await _syncStreakAndCounters(db);
+
     if (log.type == SessionType.masturbation) {
-      await saveSetting('lastStreakResetTime', log.createdAt.toIso8601String());
-      await saveSetting('currentEdgeCount', '0');
-      await saveSetting('currentArousalCount', '0');
-      await saveSetting('currentUrgeCount', '0');
+      // Only reset active edge/arousal/urge counters if this inserted log is the chronologically latest masturbation session
+      final latestLogs = await db.query(
+        'logs',
+        where: "type = 'masturbation' OR type = 'SessionType.masturbation'",
+        orderBy: 'createdAt DESC',
+        limit: 1,
+      );
+      if (latestLogs.isNotEmpty && latestLogs.first['id'] == id) {
+        await db.insert('settings', {'key': 'currentEdgeCount', 'value': '0'}, conflictAlgorithm: ConflictAlgorithm.replace);
+        await db.insert('settings', {'key': 'currentArousalCount', 'value': '0'}, conflictAlgorithm: ConflictAlgorithm.replace);
+        await db.insert('settings', {'key': 'currentUrgeCount', 'value': '0'}, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
     } else if (log.type == SessionType.edging) {
       final currentEdge = await getSettingInt('currentEdgeCount') ?? 0;
-      await saveSetting('currentEdgeCount', (currentEdge + 1).toString());
+      await db.insert('settings', {'key': 'currentEdgeCount', 'value': (currentEdge + 1).toString()}, conflictAlgorithm: ConflictAlgorithm.replace);
     } else if (log.type == SessionType.arousal) {
       final currentArousal = await getSettingInt('currentArousalCount') ?? 0;
-      await saveSetting('currentArousalCount', (currentArousal + 1).toString());
+      await db.insert('settings', {'key': 'currentArousalCount', 'value': (currentArousal + 1).toString()}, conflictAlgorithm: ConflictAlgorithm.replace);
     }
 
     return id;
@@ -276,12 +328,16 @@ class DBHelper {
     final db = await instance.database;
     final map = await _sanitizeMapForLogs(db, log.toMap());
 
-    return await db.update('logs', map, where: 'id = ?', whereArgs: [log.id]);
+    final rows = await db.update('logs', map, where: 'id = ?', whereArgs: [log.id]);
+    await _syncStreakAndCounters(db);
+    return rows;
   }
 
   Future<int> deleteLog(int id) async {
     final db = await instance.database;
-    return await db.delete('logs', where: 'id = ?', whereArgs: [id]);
+    final rows = await db.delete('logs', where: 'id = ?', whereArgs: [id]);
+    await _syncStreakAndCounters(db);
+    return rows;
   }
 
   Future<void> clearAllLogs() async {
@@ -348,6 +404,56 @@ class DBHelper {
     await db.delete('watch_logs');
   }
 
+  Future<void> _ensureExerciseLogsTableExist(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS exercise_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        startTime TEXT NOT NULL,
+        endTime TEXT NOT NULL,
+        durationMinutes REAL NOT NULL DEFAULT 15.0,
+        category TEXT NOT NULL DEFAULT 'Gym / Weights',
+        timing TEXT DEFAULT 'Standalone',
+        intensity TEXT DEFAULT 'Moderate',
+        notes TEXT DEFAULT '',
+        caloriesBurned INTEGER NOT NULL DEFAULT 0,
+        tags TEXT DEFAULT '[]'
+      )
+    ''');
+  }
+
+  // --- EXERCISE LOG CRUD ---
+
+  Future<int> insertExerciseLog(ExerciseEntry entry) async {
+    final db = await instance.database;
+    final map = entry.toMap();
+    if (map['id'] == null) map.remove('id');
+    return await db.insert('exercise_logs', map, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<ExerciseEntry>> getAllExerciseLogs() async {
+    final db = await instance.database;
+    final maps = await db.query('exercise_logs', orderBy: 'createdAt DESC');
+    return maps.map((e) => ExerciseEntry.fromMap(e)).toList();
+  }
+
+  Future<int> updateExerciseLog(ExerciseEntry entry) async {
+    final db = await instance.database;
+    final map = entry.toMap();
+    return await db.update('exercise_logs', map, where: 'id = ?', whereArgs: [entry.id]);
+  }
+
+  Future<int> deleteExerciseLog(int id) async {
+    final db = await instance.database;
+    return await db.delete('exercise_logs', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> clearAllExerciseLogs() async {
+    final db = await instance.database;
+    await db.delete('exercise_logs');
+  }
+
   // --- SETTINGS CRUD ---
 
   Future<void> saveSetting(String key, String value) async {
@@ -380,6 +486,8 @@ class DBHelper {
     final arousalCount = await getSettingInt('currentArousalCount') ?? 0;
     final urgeCount = await getSettingInt('currentUrgeCount') ?? 0;
     final widgetInterval = await getSettingInt('widgetUpdateIntervalMinutes') ?? 5;
+    final autoBackupInterval = await getSettingInt('autoBackupIntervalHours') ?? 0;
+    final lastAutoBackupStr = await getSetting('lastAutoBackupTime');
 
     return AppSettings(
       themeMode: themeStr == 'amoled' ? AppThemeMode.amoled : AppThemeMode.dark,
@@ -393,7 +501,72 @@ class DBHelper {
       currentArousalCount: arousalCount,
       currentUrgeCount: urgeCount,
       widgetUpdateIntervalMinutes: widgetInterval,
+      autoBackupIntervalHours: autoBackupInterval,
+      lastAutoBackupTime: lastAutoBackupStr != null && lastAutoBackupStr.isNotEmpty ? DateTime.tryParse(lastAutoBackupStr) : null,
     );
+  }
+
+  /// Restore database from a native SQLite .db file.
+  Future<bool> restoreDatabaseFromFile(String filePath) async {
+    try {
+      if (_database != null && _database!.isOpen) {
+        await _database!.close();
+        _database = null;
+      }
+      final dbPath = await getDatabasesPath();
+      final targetPath = join(dbPath, 'nutmate.db');
+
+      final sourceFile = File(filePath);
+      if (!await sourceFile.exists()) return false;
+
+      // Copy source file over internal database
+      await sourceFile.copy(targetPath);
+
+      // Reopen database and self-heal tables & streaks
+      final db = await database;
+      await _ensureColumnsExist(db);
+      await _ensureWatchLogsTableExist(db);
+      await _ensureExerciseLogsTableExist(db);
+      await _syncStreakAndCounters(db);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Atomically restore logs, watchLogs, and exerciseLogs from a parsed JSON backup inside a single transaction.
+  Future<int> restoreFromJson(ParsedBackup backup, {bool clearExisting = false}) async {
+    final db = await instance.database;
+    int count = 0;
+
+    await db.transaction((txn) async {
+      if (clearExisting) {
+        await txn.delete('logs');
+        await txn.delete('watch_logs');
+        await txn.delete('exercise_logs');
+      }
+
+      for (var log in backup.logs) {
+        final map = await _sanitizeMapForLogs(db, log.toMap());
+        await txn.insert('logs', map, conflictAlgorithm: ConflictAlgorithm.replace);
+        count++;
+      }
+
+      for (var watch in backup.watchLogs) {
+        final map = watch.toMap();
+        if (map['id'] == null) map.remove('id');
+        await txn.insert('watch_logs', map, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+
+      for (var exercise in backup.exerciseLogs) {
+        final map = exercise.toMap();
+        if (map['id'] == null) map.remove('id');
+        await txn.insert('exercise_logs', map, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+    });
+
+    await _syncStreakAndCounters(db);
+    return count;
   }
 }
 

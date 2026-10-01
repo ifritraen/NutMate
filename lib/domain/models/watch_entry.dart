@@ -139,4 +139,8 @@ class WatchEntry {
       isPlanned: isPlanned ?? this.isPlanned,
     );
   }
+
+  Map<String, dynamic> toJson() => toMap();
+
+  factory WatchEntry.fromJson(Map<String, dynamic> json) => WatchEntry.fromMap(json);
 }
